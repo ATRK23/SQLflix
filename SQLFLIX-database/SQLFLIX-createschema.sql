@@ -33,4 +33,10 @@ CREATE TABLE (
     category TEXT, 
     job TEXT, 
     characters TEXT
-)
+);
+
+CREATE TABLE crew (
+	tconst TEXT PRIMARY KEY,
+	directors TEXT[],
+	writers TEXT[]
+);
