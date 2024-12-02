@@ -40,3 +40,6 @@ CREATE TABLE crew (
 	directors TEXT[],
 	writers TEXT[]
 );
+
+
+salut 
