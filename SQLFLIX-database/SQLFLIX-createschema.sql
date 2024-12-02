@@ -25,3 +25,12 @@ CREATE TABLE titlebasics (
     runtimeMinutes INTEGER,
     genres TEXT[] -- Tableau pour les genres
 );
+
+CREATE TABLE (
+    tconst TEXT,
+    ordering INTEGER, 
+    nconst TEXT, 
+    category TEXT, 
+    job TEXT, 
+    characters TEXT
+)
