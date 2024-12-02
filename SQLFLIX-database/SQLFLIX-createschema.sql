@@ -26,11 +26,11 @@ CREATE TABLE titlebasics (
     genres TEXT[] -- Tableau pour les genres
 );
 
-CREATE TABLE (
+CREATE TABLE titleprincipal (
     tconst TEXT,
     ordering INTEGER, 
     nconst TEXT, 
     category TEXT, 
     job TEXT, 
     characters TEXT
-)
+);
