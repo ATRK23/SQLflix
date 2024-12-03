@@ -41,5 +41,3 @@ CREATE TABLE crew (
 	writers TEXT[]
 );
 
-
-salut 
