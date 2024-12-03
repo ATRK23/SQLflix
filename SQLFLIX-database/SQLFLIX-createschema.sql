@@ -27,7 +27,7 @@ CREATE TABLE titlebasics (
 );
 
 CREATE TABLE titleprincipal (
-    tconst TEXT,
+    tconst TEXT PRIMARY KEY,
     ordering INTEGER, 
     nconst TEXT, 
     category TEXT, 
@@ -39,5 +39,14 @@ CREATE TABLE crew (
 	tconst TEXT PRIMARY KEY,
 	directors TEXT[],
 	writers TEXT[]
+);
+
+CREATE TABLE episode (
+    tconst TEXT PRIMARY KEY,
+    ordering INTEGER,
+    nconst TEXT,
+    category TEXT,
+    job TEXT,
+    characters TEXT
 );
 
