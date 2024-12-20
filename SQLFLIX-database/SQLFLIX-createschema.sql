@@ -3,8 +3,8 @@ CREATE TABLE name (
     primaryName TEXT,
     birthYear NUMERIC(4,0),
     deathYear NUMERIC(4,0),
-    primaryProfession TEXT[],           -- Tableau pour les professions 
-    knownForTitles TEXT[]         -- Tableau pour les titres associés
+    primaryProfession TEXT[],
+    knownForTitles TEXT[]
 );
 
 
@@ -14,7 +14,7 @@ CREATE TABLE ratings (
     numVotes INTEGER
 );
 
-CREATE TABLE titlebasics (
+CREATE TABLE basics (
     tconst TEXT PRIMARY KEY,
     titleType TEXT,
     primaryTitle TEXT,
@@ -23,10 +23,10 @@ CREATE TABLE titlebasics (
     startYear NUMERIC(4,0),
     endYear NUMERIC(4,0),
     runtimeMinutes INTEGER,
-    genres TEXT[] -- Tableau pour les genres
+    genres TEXT[]
 );
 
-CREATE TABLE titleprincipal (
+CREATE TABLE principal (
     tconst TEXT,
     ordering INTEGER, 
     nconst TEXT, 
@@ -41,3 +41,20 @@ CREATE TABLE crew (
 	writers TEXT[]
 );
 
+CREATE TABLE episode (
+    tconst TEXT PRIMARY KEY,
+    parentTconst TEXT,
+    seasonNumber INTEGER,
+    episodeNumber INTEGER
+);
+
+CREATE TABLE akas (
+    titleId TEXT,
+    ordering INTEGER,
+    title TEXT,
+    region TEXT,
+    language TEXT,
+    types TEXT[],
+    attributes TEXT[],
+    isOriginalTitle BOOLEAN
+);
