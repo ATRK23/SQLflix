@@ -23,6 +23,13 @@ class MovieDatabase:
                 self.cursor.execute("SELECT title FROM movies")
                 movies = self.cursor.fetchall()
                 return [movie[0] for movie in movies]
+        
+        def get_movies_by_genre(self, genre):
+                if genre not in self.get_all_genres():
+                        return []
+                self.cursor.execute("SELECT title FROM (movies NATURAL JOIN movie_genres) AS a INNER JOIN genres ON a.genre_id = genres.genre_id WHERE name = %s", (genre,))
+                movies = self.cursor.fetchall()
+                return [movie[0] for movie in movies]
 
         def close(self):
                 self.cursor.close()
@@ -39,5 +46,7 @@ if __name__ == '__main__':
                 print(keywords)
                 movies = db.get_all_movies_name()
                 print(movies)
+                horror_movies = db.get_movies_by_genre("Thriller")
+                print(horror_movies)
         finally:
                 db.close()
