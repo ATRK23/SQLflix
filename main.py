@@ -2,7 +2,7 @@ import os
 import sys
 import psycopg2
 #from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget
-
+               
 class MovieDatabase:
         def __init__(self, database, user, host, password):
                 self.conn = psycopg2.connect(database=database, user=user, host=host, password=password)
@@ -13,6 +13,11 @@ class MovieDatabase:
                 self.cursor.execute("SELECT name FROM genres INNER JOIN movie_genres ON genres.genre_id = movie_genres.genre_id GROUP BY name ORDER BY count(*) DESC")  
                 genres = self.cursor.fetchall()
                 return [genre[0] for genre in genres]
+
+        def get_all_keywords(self):
+                self.cursor.execute("SELECT name FROM keywords INNER JOIN movie_keywords ON keywords.keyword_id = movie_keywords.keyword_id GROUP BY name ORDER BY count(*) DESC")
+                keywords = self.cursor.fetchall()
+                return [keys[0] for keys in keywords]
 
         def close(self):
                 self.cursor.close()
@@ -25,5 +30,7 @@ if __name__ == '__main__':
         try:
                 genres = db.get_all_genres()
                 print(genres)
+                keywords = db.get_all_keywords()
+                print(keywords)
         finally:
                 db.close()
