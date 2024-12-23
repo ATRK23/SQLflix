@@ -18,6 +18,11 @@ class MovieDatabase:
                 self.cursor.execute("SELECT name FROM keywords INNER JOIN movie_keywords ON keywords.keyword_id = movie_keywords.keyword_id GROUP BY name ORDER BY count(*) DESC")
                 keywords = self.cursor.fetchall()
                 return [keys[0] for keys in keywords]
+        
+        def get_all_movies_name(self):
+                self.cursor.execute("SELECT title FROM movies")
+                movies = self.cursor.fetchall()
+                return [movie[0] for movie in movies]
 
         def close(self):
                 self.cursor.close()
@@ -32,5 +37,7 @@ if __name__ == '__main__':
                 print(genres)
                 keywords = db.get_all_keywords()
                 print(keywords)
+                movies = db.get_all_movies_name()
+                print(movies)
         finally:
                 db.close()
