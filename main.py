@@ -1,9 +1,29 @@
 import os
 import sys
 import psycopg2
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget
+#from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget
 
-def connect_DB(self):
-        self.conn = psycopg2.connect(database="myuniversitydb", user="mynabil", host="localhost", password="test")
-        #self.conn = psycopg2.connect(database="l3info_10", user="l3info_10", host="10.11.11.22", password="L3INFO_10")
-        self.cursor = self.conn.cursor()
+class MovieDatabase:
+        def __init__(self, database, user, host, password):
+                self.conn = psycopg2.connect(database=database, user=user, host=host, password=password)
+                #conn = psycopg2.connect(database="l3info_10", user="l3info_10", host="10.11.11.22", password="L3INFO_10")
+                self.cursor = self.conn.cursor()
+
+        def get_all_genres(self):
+                self.cursor.execute("SELECT name FROM genres INNER JOIN movie_genres ON genres.genre_id = movie_genres.genre_id GROUP BY name ORDER BY count(*) DESC")  
+                genres = self.cursor.fetchall()
+                return [genre[0] for genre in genres]
+
+        def close(self):
+                self.cursor.close()
+                self.conn.close()
+        
+if __name__ == '__main__':
+        # Connection
+        db = MovieDatabase(database="mynewdb", user="arthur", host="localhost", password="")
+
+        try:
+                genres = db.get_all_genres()
+                print(genres)
+        finally:
+                db.close()
