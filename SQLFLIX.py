@@ -617,14 +617,16 @@ class MoviePage(QMainWindow):
         cast_crew_widget.setLayout(cast_crew_layout)
         right_layout.addWidget(cast_crew_widget)
 
-        left_widget = QWidget()
-        left_widget.setLayout(left_layout)
-
         right_widget = QWidget()
         right_widget.setLayout(right_layout)
+        right_scroll_area = QScrollArea()
+        right_scroll_area.setWidget(right_widget)
+        right_scroll_area.setWidgetResizable(True)
 
+        left_widget = QWidget()
+        left_widget.setLayout(left_layout)
         splitter.addWidget(left_widget)
-        splitter.addWidget(right_widget)
+        splitter.addWidget(right_scroll_area)
 
         central_widget = QWidget()
         central_layout = QVBoxLayout()
