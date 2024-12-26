@@ -4,11 +4,10 @@ import hashlib
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QLineEdit, QPushButton,
     QLabel, QMessageBox, QWidget, QDialog, QSpacerItem, QSizePolicy, QHBoxLayout, QCheckBox,
-    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout
+    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget
 )
 from PyQt5.QtGui import QPixmap, QFont, QIcon
 from PyQt5.QtCore import Qt
-import requests
 
 # Configuration PostgreSQL 
 DB_CONFIG = {
@@ -206,34 +205,20 @@ class HomePage(QMainWindow):
         self.username = username
         self.setWindowTitle("SQLFLIX - Homepage")
         self.setGeometry(100, 100, 800, 600)
-        
+
         main_layout = QVBoxLayout()
 
-        splitter = QSplitter(Qt.Horizontal)
+        self.create_search_bar(main_layout)
+        self.create_all_movies_section(main_layout)
+        self.create_top_movies_section(main_layout)
+        self.create_recommendations_section(main_layout)
 
-        left_widget = QWidget()
-        left_layout = QVBoxLayout()
-        self.create_search_bar(left_layout)
-        self.create_all_movies_section(left_layout)
-        self.create_top_movies_section(left_layout)
-        self.create_recommendations_section(left_layout)
-        left_widget.setLayout(left_layout)
-        
-        right_widget = QWidget()
-        right_layout = QVBoxLayout()
-        self.tabs = QTabWidget()  # Les onglets pour afficher les films détaillés
-        right_layout.addWidget(self.tabs)
-        right_widget.setLayout(right_layout)
-        
-        splitter.addWidget(left_widget)
-        splitter.addWidget(right_widget)
-
-        main_layout.addWidget(splitter)
-
-        # Logout button
         self.logout_button = QPushButton("Logout")
         self.logout_button.clicked.connect(self.logout)
         main_layout.addWidget(self.logout_button)
+
+        self.tabs = QTabWidget()
+        main_layout.addWidget(self.tabs)
 
         main_widget = QWidget()
         main_widget.setLayout(main_layout)
@@ -411,7 +396,7 @@ class HomePage(QMainWindow):
         self.login_window = LoginWindow()
         self.login_window.show()
         
-    def open_movie_page(self, movie_id, user_id):
+    def open_movie_page(self, movie_id):
         movie_name = get_movie_name(movie_id)
         movie_year = get_movie_year(movie_id)
 
@@ -422,7 +407,7 @@ class HomePage(QMainWindow):
                 return
 
         # Créer un nouvel onglet pour le film
-        movie_page = MoviePage(movie_id, user_id)
+        movie_page = MoviePage(movie_id)
         self.tabs.addTab(movie_page, f"{movie_name} ({movie_year})")
         self.tabs.setCurrentIndex(self.tabs.count() - 1)  # Sélectionner le dernier onglet
 
@@ -440,21 +425,7 @@ class HomePage(QMainWindow):
 
         # Ouvrir la page du film
         if movie_id:
-            self.open_movie_page(movie_id, self.get_user_id(self.username))
-            
-    def get_user_id(self, username):
-        try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            query = "SELECT user_id FROM users WHERE username = %s"
-            cursor.execute(query, (username,))
-            user_id = cursor.fetchone()[0]
-            cursor.close()
-            conn.close()
-            return user_id
-        except Exception as e:
-            print(f"Error: {e}")
-            return None
+            self.open_movie_page(movie_id)
 
     def get_movie_id_by_title_and_year(self, title, year):
         try:
@@ -518,407 +489,13 @@ def get_movie_name(movie_id):
 
 
 class MoviePage(QMainWindow):
-    def __init__(self, movie_id, user_id):
+    def __init__(self, movie_id):
         super().__init__()
-        self.like_button = QPushButton("👍 Like")
-        self.dislike_button = QPushButton("👎 Dislike")
 
         self.movie_id = movie_id
-        self.user_id = user_id
 
         self.setWindowTitle(f"SQLFLIX - {get_movie_name(movie_id)} ({get_movie_year(movie_id)})")
-        self.setGeometry(100, 100, 1000, 600)
-
-        splitter = QSplitter(Qt.Vertical)
-
-        # Layouts gauche et droite
-        left_layout = QVBoxLayout()
-        right_layout = QVBoxLayout()
-
-        # Partie gauche : Titre centré et image
-        title_label = QLabel(get_movie_name(movie_id))
-        title_label.setAlignment(Qt.AlignCenter)  # Centrer le titre
-        title_label.setStyleSheet("font-size: 30px; font-weight: bold;")
-        left_layout.addWidget(title_label)
-
-        poster_label = QLabel()
-        poster_pixmap = self.get_movie_poster()
-        poster_label.setPixmap(poster_pixmap)
-        poster_label.setAlignment(Qt.AlignCenter)
-        left_layout.addWidget(poster_label)
-
-        # Partie droite : Sections
-        right_layout.addWidget(self.create_ratings_section())
-        right_layout.addWidget(self.create_like_dislike_section(user_id, movie_id))
-        right_layout.addWidget(self.create_genres_and_keywords_section(movie_id))
-        right_layout.addWidget(self.create_languages_section(movie_id))
-
-        # Disposition Cast et Crew côte à côte avec scrollbar
-        cast_crew_layout = QHBoxLayout()
-        cast_scroll = QScrollArea()
-        cast_scroll.setWidget(self.create_cast_section(movie_id))
-        cast_scroll.setWidgetResizable(True)
-        cast_scroll.setFixedHeight(200)
-
-        crew_scroll = QScrollArea()
-        crew_scroll.setWidget(self.create_crew_section(movie_id))
-        crew_scroll.setWidgetResizable(True)
-        crew_scroll.setFixedHeight(200)
-
-        cast_crew_layout.addWidget(cast_scroll)
-        cast_crew_layout.addWidget(crew_scroll)
-        cast_crew_widget = QWidget()
-        cast_crew_widget.setLayout(cast_crew_layout)
-        right_layout.addWidget(cast_crew_widget)
-
-        left_widget = QWidget()
-        left_widget.setLayout(left_layout)
-
-        right_widget = QWidget()
-        right_widget.setLayout(right_layout)
-
-        splitter.addWidget(left_widget)
-        splitter.addWidget(right_widget)
-
-        central_widget = QWidget()
-        central_layout = QVBoxLayout()
-        central_layout.addWidget(splitter)
-        central_widget.setLayout(central_layout)
-
-        self.setCentralWidget(central_widget)
-
-    def get_movie_poster(self):
-        # Récupérer l'URL depuis la BDD ou utiliser une URL par défaut
-        poster_url = "https://image.tmdb.org/t/p/w500/8UlWHLMpgZm9bx6QYh0NFoq67TZ.jpg"  # Exemple
-        try:
-            response = requests.get(poster_url, stream=True)
-            if response.status_code == 200:
-                image_data = response.content
-                pixmap = QPixmap()
-                pixmap.loadFromData(image_data)
-                return pixmap
-        except Exception as e:
-            print(f"Erreur lors du téléchargement de l'image : {e}")
-        return None
-
-    def get_like_dislike_status(self, user_id, movie_id):
-        try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            query = """SELECT liked FROM user_movie_interactions
-                    WHERE user_id = %s AND movie_id = %s"""
-            cursor.execute(query, (user_id, movie_id))
-            result = cursor.fetchone()
-            cursor.close()
-            conn.close()
-
-            if result is not None:
-                return result[0]  # TRUE, FALSE, ou NULL
-            return None  # Aucun enregistrement
-        except Exception as e:
-            print(f"Erreur lors de la récupération du statut like/dislike : {e}")
-            return None
-
-    def create_like_dislike_section(self, user_id, movie_id):
-        like_dislike_group = QGroupBox("Like / Dislike")
-        like_dislike_layout = QHBoxLayout()  # Mettre les boutons côte à côte
-
-        # Utilisez les attributs de la classe
-        like_button = self.like_button
-        dislike_button = self.dislike_button
-
-        # Récupérer l'état initial
-        current_status = self.get_like_dislike_status(user_id, movie_id)
-
-        # Appliquer un style visuel selon l'état
-        if current_status is True:
-            like_button.setStyleSheet("background-color: green; color: white;")
-        elif current_status is False:
-            dislike_button.setStyleSheet("background-color: red; color: white;")
-        else:
-            like_button.setStyleSheet("")
-            dislike_button.setStyleSheet("")
-
-        # Gérer les clics sur les boutons
-        like_button.clicked.connect(lambda: self.handle_like_dislike(user_id, movie_id, True))
-        dislike_button.clicked.connect(lambda: self.handle_like_dislike(user_id, movie_id, False))
-
-        like_dislike_layout.addWidget(like_button)
-        like_dislike_layout.addWidget(dislike_button)
-        like_dislike_group.setLayout(like_dislike_layout)
-        return like_dislike_group
-
-    def handle_like_dislike(self, user_id, movie_id, liked):
-        try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-
-            # Vérifiez si une interaction existe déjà
-            query_check = """SELECT liked FROM user_movie_interactions
-                            WHERE user_id = %s AND movie_id = %s"""
-            cursor.execute(query_check, (user_id, movie_id))
-            result = cursor.fetchone()
-
-            if result is None:
-                # Insérer une nouvelle interaction
-                query_insert = """INSERT INTO user_movie_interactions (user_id, movie_id, liked)
-                                VALUES (%s, %s, %s)"""
-                cursor.execute(query_insert, (user_id, movie_id, liked))
-            else:
-                # Mettre à jour l'interaction existante
-                query_update = """UPDATE user_movie_interactions
-                                SET liked = %s
-                                WHERE user_id = %s AND movie_id = %s"""
-                cursor.execute(query_update, (liked, user_id, movie_id))
-
-            conn.commit()
-            cursor.close()
-            conn.close()
-
-            # Mettre à jour l'interface (réinitialise les boutons)
-            self.refresh_like_dislike_buttons(user_id, movie_id)
-        except Exception as e:
-            print(f"Erreur lors de la mise à jour like/dislike : {e}")
-
-    def refresh_like_dislike_buttons(self, user_id, movie_id):
-        """
-        Rafraîchit les boutons Like/Dislike selon l'état actuel.
-        """
-        current_status = self.get_like_dislike_status(user_id, movie_id)
-
-        # Met à jour le style des boutons
-        if current_status is True:
-            self.like_button.setStyleSheet("background-color: green; color: white;")
-            self.dislike_button.setStyleSheet("")
-        elif current_status is False:
-            self.like_button.setStyleSheet("")
-            self.dislike_button.setStyleSheet("background-color: red; color: white;")
-        else:
-            self.like_button.setStyleSheet("")
-            self.dislike_button.setStyleSheet("")
-
-
-    def create_ratings_section(self):
-        ratings_group = QGroupBox("Ratings")
-        ratings_layout = QVBoxLayout()  # Utilisez QVBoxLayout pour empiler verticalement
-
-        # Affichage de la note moyenne
-        try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            query = "SELECT vote_average, vote_count FROM movies WHERE movie_id = %s"
-            cursor.execute(query, (self.movie_id,))
-            result = cursor.fetchone()
-            rating = result[0]
-            count = result[1]
-            cursor.close()
-            conn.close()
-
-            rating_label = QLabel(f"Average Rating: {rating:.1f} ({count} votes)")
-            ratings_layout.addWidget(rating_label)
-        except Exception as e:
-            print(f"Error fetching rating: {e}")
-
-        # Séparateur visuel
-        separator = QFrame()
-        separator.setFrameShape(QFrame.HLine)
-        separator.setFrameShadow(QFrame.Sunken)
-        ratings_layout.addWidget(separator)
-
-        # Texte explicatif pour le slider
-        explanation_label = QLabel("Use the slider to rate this movie:")
-        ratings_layout.addWidget(explanation_label)
-
-        # Sélection de la note (slider interactif)
-        slider_layout = QVBoxLayout()  # Utilisez QVBoxLayout pour empiler le slider et les labels
-        slider = QSlider(Qt.Horizontal)
-        slider.setRange(0, 5)
-        slider.setTickInterval(1)
-        slider.setTickPosition(QSlider.TicksBelow)
-
-        # Initialiser le slider avec la note de l'utilisateur
-        try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            query = "SELECT rating FROM user_movie_interactions WHERE user_id = %s AND movie_id = %s"
-            cursor.execute(query, (self.user_id, self.movie_id))
-            user_rating = cursor.fetchone()
-            if user_rating is not None:
-                slider.setValue(user_rating[0])
-            cursor.close()
-            conn.close()
-        except Exception as e:
-            print(f"Error fetching user rating: {e}")
-
-        def update_rating(value):
-            try:
-                conn = psycopg2.connect(**DB_CONFIG)
-                cursor = conn.cursor()
-                query = """INSERT INTO user_movie_interactions (user_id, movie_id, rating) 
-                        VALUES (%s, %s, %s)
-                        ON CONFLICT (user_id, movie_id) DO UPDATE SET rating = %s"""
-                cursor.execute(query, (self.user_id, self.movie_id, value, value))
-                conn.commit()
-                cursor.close()
-                conn.close()
-            except Exception as e:
-                print(f"Error updating rating: {e}")
-
-        slider.valueChanged.connect(update_rating)
-        slider_layout.addWidget(slider)
-
-        # Labels pour indiquer les valeurs du slider
-        slider_labels_layout = QGridLayout()
-        for i in range(6):
-            label = QLabel(str(i))
-            label.setAlignment(Qt.AlignCenter)
-            slider_labels_layout.addWidget(label, 0, i)
-
-        ratings_layout.addLayout(slider_layout)
-        ratings_layout.addLayout(slider_labels_layout)
-
-        ratings_group.setLayout(ratings_layout)
-        return ratings_group
-
-
-    def create_genres_and_keywords_section(self, movie_id):
-        group = QGroupBox("Genres and Keywords")
-        layout = QVBoxLayout()
-
-        # Récupération des genres
-        try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            query = """SELECT G.name FROM genres AS G
-                    INNER JOIN movie_genres AS MG ON G.genre_id = MG.genre_id
-                    WHERE MG.movie_id = %s"""
-            cursor.execute(query, (movie_id,))
-            genres = cursor.fetchall()
-            genres_list = ", ".join([genre[0] for genre in genres])
-            cursor.close()
-            conn.close()
-
-            layout.addWidget(QLabel(f"Genres: {genres_list}"))
-        except Exception as e:
-            print(f"Error fetching genres: {e}")
-
-        # Récupération des mots-clés
-        try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            query = """SELECT K.name FROM keywords AS K
-                    INNER JOIN movie_keywords AS MK ON K.keyword_id = MK.keyword_id
-                    WHERE MK.movie_id = %s LIMIT 5"""
-            cursor.execute(query, (movie_id,))
-            keywords = cursor.fetchall()
-            keywords_list = ", ".join([kw[0] for kw in keywords])
-            cursor.close()
-            conn.close()
-
-            layout.addWidget(QLabel(f"Keywords: {keywords_list}"))
-        except Exception as e:
-            print(f"Error fetching keywords: {e}")
-
-        group.setLayout(layout)
-        return group
-
-    def create_languages_section(self, movie_id):
-        group = QGroupBox("Languages")
-        layout = QVBoxLayout()
-
-        try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            query = """SELECT L.name, L.language_code FROM spoken_languages AS L
-                    INNER JOIN movie_spoken_languages AS MSL ON L.language_code = MSL.language_code
-                    WHERE MSL.movie_id = %s"""
-            cursor.execute(query, (movie_id,))
-            languages = cursor.fetchall()
-            cursor.close()
-            conn.close()
-
-            # Construire une chaîne de caractères avec toutes les langues
-            languages_str = ", ".join([f"{self.get_flag_emoji(code)} {language}" for language, code in languages])
-            layout.addWidget(QLabel(languages_str))
-        except Exception as e:
-            print(f"Error fetching languages: {e}")
-
-        group.setLayout(layout)
-        return group
-
-    def get_flag_emoji(self, language_code):
-        if len(language_code) == 2:
-            return chr(ord(language_code[0].upper()) + 127397) + chr(ord(language_code[1].upper()) + 127397)
-        return "🏳️"
-
-    def get_movie_cast(self, movie_id):
-        try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            query = """SELECT actor_name, character_name
-                    FROM movie_cast
-                    WHERE movie_id = %s
-                    ORDER BY display_order"""
-            cursor.execute(query, (movie_id,))
-            cast = cursor.fetchall()
-            cursor.close()
-            conn.close()
-            return cast  # Liste de tuples (actor_name, character_name)
-        except Exception as e:
-            print(f"Erreur lors de la récupération du cast : {e}")
-            return []
-
-    def create_cast_section(self, movie_id):
-        cast_group = QGroupBox("Cast")
-        cast_layout = QVBoxLayout()
-
-        cast = self.get_movie_cast(movie_id)
-
-        if not cast:
-            label = QLabel("No cast information available.")
-            cast_layout.addWidget(label)
-        else:
-            for actor_name, character_name in cast:
-                label = QLabel(f"{actor_name} as {character_name}")
-                cast_layout.addWidget(label)
-
-        cast_group.setLayout(cast_layout)
-        return cast_group
-
-    def get_movie_crew(self, movie_id):
-        try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            query = """SELECT member_name, job
-                    FROM crew
-                    WHERE movie_id = %s
-                    ORDER BY department"""
-            cursor.execute(query, (movie_id,))
-            crew = cursor.fetchall()
-            cursor.close()
-            conn.close()
-            return crew  # Liste de tuples (member_name, job)
-        except Exception as e:
-            print(f"Erreur lors de la récupération du crew : {e}")
-            return []
-        
-    def create_crew_section(self, movie_id):
-
-        crew_group = QGroupBox("Crew")
-        crew_layout = QVBoxLayout()
-
-        crew = self.get_movie_crew(movie_id)
-
-        if not crew:
-            label = QLabel("No crew information available.")
-            crew_layout.addWidget(label)
-        else:
-            for member_name, job in crew:
-                label = QLabel(f"{member_name} - {job}")
-                crew_layout.addWidget(label)
-
-        crew_group.setLayout(crew_layout)
-        return crew_group
+        self.setGeometry(100, 100, 800, 600)
 
         
         
