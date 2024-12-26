@@ -4,7 +4,7 @@ import hashlib
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QLineEdit, QPushButton,
     QLabel, QMessageBox, QWidget, QDialog, QSpacerItem, QSizePolicy, QHBoxLayout, QCheckBox,
-    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout
+    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout, QHeaderView
 )
 from PyQt5.QtGui import QPixmap, QFont, QIcon
 from PyQt5.QtCore import Qt
@@ -293,6 +293,10 @@ class HomePage(QMainWindow):
         self.all_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating'])
         self.load_all_movies(self.all_movies_table)
         
+        self.all_movies_table.resizeColumnsToContents()
+        header = self.all_movies_table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+        
         self.all_movies_table.cellDoubleClicked.connect(self.on_movie_double_clicked)
 
         all_movies_layout.addWidget(self.all_movies_table)
@@ -307,6 +311,10 @@ class HomePage(QMainWindow):
         self.top_movies_table.setColumnCount(4)
         self.top_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating'])
         self.load_top_movies(self.top_movies_table)
+        
+        self.top_movies_table.resizeColumnsToContents()
+        header = self.top_movies_table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
         
         self.top_movies_table.setFixedHeight(10 * self.top_movies_table.verticalHeader().defaultSectionSize())
         
