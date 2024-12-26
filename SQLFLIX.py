@@ -14,10 +14,34 @@ import requests
 DB_CONFIG = {
     'dbname': 'sqlflix',
     'user': 'postgres',
-    'password': 'database12@',
-    'host': 'localhost',
+    'password': 'postgres',
+    'host': 'localhost'
     #'port': '5432'
 }
+
+#API TMDB pour les poster
+tmdb_api_key = "e072012ac707cd3cd0d66699ebce5aff"
+
+BASE_URL = 'https://api.themoviedb.org/3'
+IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500'
+
+def get_movie_poster_api(movie_name):
+    search_url = f"{BASE_URL}/search/movie"
+    params = {
+        'api_key': tmdb_api_key,
+        'query': movie_name
+    }
+    response = requests.get(search_url, params=params)
+    data = response.json()
+    
+    if data['results']:
+        movie = data['results'][0]
+        poster_path = movie['poster_path']
+        poster_url = f"{IMAGE_BASE_URL}{poster_path}"
+        return poster_url
+    else:
+        print("Film non trouvé.")
+        return None
 
 class LoginWindow(QMainWindow):
     def __init__(self):
@@ -542,8 +566,14 @@ class MoviePage(QMainWindow):
         title_label.setStyleSheet("font-size: 30px; font-weight: bold;")
         left_layout.addWidget(title_label)
 
+        movie_name = get_movie_name(movie_id)
+
         poster_label = QLabel()
-        poster_pixmap = self.get_movie_poster()
+        poster_pixmap = self.get_movie_poster(movie_name)
+        if poster_pixmap:
+            poster_label.setPixmap(poster_pixmap)
+        else:
+            print("Erreur : Impossible de charger l'affiche du film.")
         poster_label.setPixmap(poster_pixmap)
         poster_label.setAlignment(Qt.AlignCenter)
         left_layout.addWidget(poster_label)
@@ -588,18 +618,18 @@ class MoviePage(QMainWindow):
 
         self.setCentralWidget(central_widget)
 
-    def get_movie_poster(self):
-        # Récupérer l'URL depuis la BDD ou utiliser une URL par défaut
-        poster_url = "https://image.tmdb.org/t/p/w500/8UlWHLMpgZm9bx6QYh0NFoq67TZ.jpg"  # Exemple
-        try:
-            response = requests.get(poster_url, stream=True)
-            if response.status_code == 200:
-                image_data = response.content
-                pixmap = QPixmap()
-                pixmap.loadFromData(image_data)
-                return pixmap
-        except Exception as e:
-            print(f"Erreur lors du téléchargement de l'image : {e}")
+    def get_movie_poster(self, movie_name):
+        poster_url = get_movie_poster_api(movie_name)
+        if poster_url:
+            try:
+                response = requests.get(poster_url, stream=True)
+                if response.status_code == 200:
+                    image_data = response.content
+                    pixmap = QPixmap()
+                    pixmap.loadFromData(image_data)
+                    return pixmap
+            except Exception as e:
+                print(f"Erreur lors du téléchargement de l'image : {e}")
         return None
 
     def get_like_dislike_status(self, user_id, movie_id):
