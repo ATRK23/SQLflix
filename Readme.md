@@ -6,3 +6,5 @@ voir fichier `idee_plan.png`
 - Note / nombre de vote
 - Casting / crew
 - Affichage poster
+# Cette branche sert à gérer toute la partie utilisateur
+Like/dislike, recommandation de film, note du film

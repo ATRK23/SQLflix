@@ -14,8 +14,9 @@ import requests
 DB_CONFIG = {
     'dbname': 'sqlflix',
     'user': 'postgres',
-    'password': 'postgres',
-    'host': 'localhost'
+    'password': 'database12@',
+    'host': 'localhost',
+    #'port': '5432'
 }
 
 class LoginWindow(QMainWindow):
