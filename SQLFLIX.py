@@ -246,7 +246,7 @@ class HomePage(QMainWindow):
         self.create_search_bar(left_layout)
         self.create_all_movies_section(left_layout)
         self.create_top_movies_section(left_layout)
-        self.create_recommendations_section(left_layout)
+        #self.create_recommendations_section(left_layout)
         left_widget.setLayout(left_layout)
         
         right_widget = QWidget()
@@ -314,7 +314,7 @@ class HomePage(QMainWindow):
         top_movies_group.setLayout(top_movies_layout)
         layout.addWidget(top_movies_group)
 
-    def create_recommendations_section(self, layout):
+    """ def create_recommendations_section(self, layout):
         self.recommendations_group = QGroupBox("Recommandations")
         self.recommendations_layout = QVBoxLayout()
 
@@ -327,7 +327,7 @@ class HomePage(QMainWindow):
 
         self.recommendations_layout.addWidget(self.recommendations_table)
         self.recommendations_group.setLayout(self.recommendations_layout)
-        layout.addWidget(self.recommendations_group)
+        layout.addWidget(self.recommendations_group) """
 
     def load_all_movies(self, table):
         try:
