@@ -17,7 +17,7 @@ DB_CONFIG = {
     'host': 'localhost',
     'port': '5432'
 }
-#sa
+
 class LoginWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -280,10 +280,15 @@ class HomePage(QMainWindow):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            query = """SELECT M.title, G.name as genre, M.release_date, M.vote_average
-                    FROM movies AS M
-                    INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
-                    INNER JOIN genres AS G ON MG.genre_id = G.genre_id;"""
+            query = """SELECT M.title, 
+       STRING_AGG(G.name, ', ' ORDER BY G.name) AS genres, 
+       M.release_date, 
+       M.vote_average
+FROM movies AS M
+INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
+INNER JOIN genres AS G ON MG.genre_id = G.genre_id
+GROUP BY M.title, M.release_date, M.vote_average;
+"""
             cursor.execute(query)
             movies = cursor.fetchall()
 
