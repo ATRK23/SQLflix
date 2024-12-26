@@ -11,11 +11,10 @@ from PyQt5.QtCore import Qt
 
 # Configuration PostgreSQL 
 DB_CONFIG = {
-    'dbname': 'sqlflix',
-    'user': 'postgres',
-    'password': 'database12@',
-    'host': 'localhost',
-    'port': '5432'
+    'dbname': '',
+    'user': '',
+    'password': '',
+    'host': 'localhost'
 }
 
 class LoginWindow(QMainWindow):
@@ -245,6 +244,8 @@ class HomePage(QMainWindow):
         self.all_movies_table.setColumnCount(4)
         self.all_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating'])
         self.load_all_movies(self.all_movies_table)
+        
+        self.all_movies_table.cellDoubleClicked.connect(self.on_movie_double_clicked)
 
         all_movies_layout.addWidget(self.all_movies_table)
         all_movies_group.setLayout(all_movies_layout)
@@ -387,7 +388,98 @@ class HomePage(QMainWindow):
     def open_login_window(self):
         self.login_window = LoginWindow()
         self.login_window.show()
+        
+    def open_movie_page(self, movie_id):
+        self.movie_page = MoviePage(movie_id)
+        self.movie_page.show()
 
+    def on_movie_double_clicked(self, row):
+        # Récupérer le titre et l'année du film
+        movie_title = self.all_movies_table.item(row, 0).text()
+        release_date = self.all_movies_table.item(row, 2).text()  # L'année est dans la 3e colonne
+
+        # Extraire l'année de la date (format YYYY-MM-DD)
+        movie_year = release_date.split('-')[0]
+
+        # Rechercher l'ID du film à partir du titre et de l'année
+        movie_id = self.get_movie_id_by_title_and_year(movie_title, movie_year)
+
+        # Ouvrir la page du film
+        if movie_id:
+            self.open_movie_page(movie_id)
+
+    def get_movie_id_by_title_and_year(self, title, year):
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+
+            # Convertir l'année en entier (si nécessaire)
+            year = int(year)
+
+            # Requête pour récupérer l'ID du film à partir du titre et de l'année
+            query = """SELECT movie_id FROM movies WHERE title = %s AND EXTRACT(YEAR FROM release_date) = %s;"""
+            cursor.execute(query, (title, year))
+            movie_id = cursor.fetchone()
+
+            cursor.close()
+            conn.close()
+
+            if movie_id:
+                return movie_id[0]  # Retourner l'ID du film
+            else:
+                print(f"Film {title} ({year}) non trouvé.")
+                return None
+
+        except Exception as e:
+            print(f"Erreur lors de la récupération de l'ID du film: {e}")
+            return None
+
+#----------------------------------------------------------
+
+def get_movie_date(movie_id):
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        query = "SELECT release_date FROM movies WHERE movie_id = %s"
+        cursor.execute(query, (movie_id,))
+        movie_date = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+        return movie_date
+    except Exception as e:
+        print(f"Error: {e}")
+        return "Error get movie date"
+    
+def get_movie_year(movie_id):
+    date = get_movie_date(movie_id)
+    return date.year
+
+def get_movie_name(movie_id):
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        query = "SELECT title FROM movies WHERE movie_id = %s"
+        cursor.execute(query, (movie_id,))
+        movie_name = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+        return movie_name
+    except Exception as e:
+        print(f"Error: {e}")
+        return "Movie Page"
+
+
+class MoviePage(QMainWindow):
+    def __init__(self, movie_id):
+        super().__init__()
+
+        self.movie_id = movie_id
+
+        self.setWindowTitle(f"SQLFLIX - {get_movie_name(movie_id)} ({get_movie_year(movie_id)})")
+        self.setGeometry(100, 100, 800, 600)
+
+        
+        
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     login_window = LoginWindow()
