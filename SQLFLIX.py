@@ -11,9 +11,9 @@ from PyQt5.QtCore import Qt
 
 # Configuration PostgreSQL 
 DB_CONFIG = {
-    'dbname': '',
-    'user': '',
-    'password': '',
+    'dbname': 'sqlflix',
+    'user': 'postgres',
+    'password': 'postgres',
     'host': 'localhost'
 }
 
@@ -255,27 +255,31 @@ class HomePage(QMainWindow):
         top_movies_group = QGroupBox("Top 10 Films")
         top_movies_layout = QVBoxLayout()
 
-        top_movies_table = QTableWidget()
-        top_movies_table.setColumnCount(4)
-        top_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating'])
-        self.load_top_movies(top_movies_table)
+        self.top_movies_table = QTableWidget()
+        self.top_movies_table.setColumnCount(4)
+        self.top_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating'])
+        self.load_top_movies(self.top_movies_table)
+        
+        self.top_movies_table.cellDoubleClicked.connect(self.on_movie_double_clicked)
 
-        top_movies_layout.addWidget(top_movies_table)
+        top_movies_layout.addWidget(self.top_movies_table)
         top_movies_group.setLayout(top_movies_layout)
         layout.addWidget(top_movies_group)
 
     def create_recommendations_section(self, layout):
-        recommendations_group = QGroupBox("Recommandations")
-        recommendations_layout = QVBoxLayout()
+        self.recommendations_group = QGroupBox("Recommandations")
+        self.recommendations_layout = QVBoxLayout()
 
-        recommendations_table = QTableWidget()
-        recommendations_table.setColumnCount(4)
-        recommendations_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Release Date', 'Rating'])
-        self.load_recommendations(recommendations_table)
+        self.recommendations_table = QTableWidget()
+        self.recommendations_table.setColumnCount(4)
+        self.recommendations_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Release Date', 'Rating'])
+        self.load_recommendations(self.recommendations_table)
+        
+        self.recommendations_table.cellDoubleClicked.connect(self.on_movie_double_clicked)
 
-        recommendations_layout.addWidget(recommendations_table)
-        recommendations_group.setLayout(recommendations_layout)
-        layout.addWidget(recommendations_group)
+        self.recommendations_layout.addWidget(self.recommendations_table)
+        self.recommendations_group.setLayout(self.recommendations_layout)
+        layout.addWidget(self.recommendations_group)
 
     def load_all_movies(self, table):
         try:
@@ -394,9 +398,12 @@ class HomePage(QMainWindow):
         self.movie_page.show()
 
     def on_movie_double_clicked(self, row):
+        
+        table = self.sender() #recupere ce qui l'a appelé
+        
         # Récupérer le titre et l'année du film
-        movie_title = self.all_movies_table.item(row, 0).text()
-        release_date = self.all_movies_table.item(row, 2).text()  # L'année est dans la 3e colonne
+        movie_title = table.item(row, 0).text()
+        release_date = table.item(row, 2).text()  # L'année est dans la 3e colonne
 
         # Extraire l'année de la date (format YYYY-MM-DD)
         movie_year = release_date.split('-')[0]
