@@ -814,16 +814,17 @@ class MoviePage(QMainWindow):
 
         slider.valueChanged.connect(update_rating)
         slider_layout.addWidget(slider)
-
-        # Labels pour indiquer les valeurs du slider
-        slider_labels_layout = QGridLayout()
+            
+        labels_layout = QHBoxLayout()  # Utiliser un layout horizontal pour aligner les labels
         for i in range(6):
             label = QLabel(str(i))
             label.setAlignment(Qt.AlignCenter)
-            slider_labels_layout.addWidget(label, 0, i)
+            labels_layout.addWidget(label)
+            if i < 5:  # Ajouter un stretch entre les labels sauf après le dernier
+                labels_layout.addStretch(1)
 
         ratings_layout.addLayout(slider_layout)
-        ratings_layout.addLayout(slider_labels_layout)
+        ratings_layout.addLayout(labels_layout)
 
         ratings_group.setLayout(ratings_layout)
         return ratings_group
