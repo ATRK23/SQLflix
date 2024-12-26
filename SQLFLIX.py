@@ -297,7 +297,7 @@ class HomePage(QMainWindow):
 
         all_movies_layout.addWidget(self.all_movies_table)
         all_movies_group.setLayout(all_movies_layout)
-        layout.addWidget(all_movies_group)
+        layout.addWidget(all_movies_group, stretch=1)
     
     def create_top_movies_section(self, layout):
         top_movies_group = QGroupBox("Top 10 Films")
@@ -308,11 +308,13 @@ class HomePage(QMainWindow):
         self.top_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating'])
         self.load_top_movies(self.top_movies_table)
         
+        self.top_movies_table.setFixedHeight(10 * self.top_movies_table.verticalHeader().defaultSectionSize())
+        
         self.top_movies_table.cellDoubleClicked.connect(self.on_movie_double_clicked)
 
         top_movies_layout.addWidget(self.top_movies_table)
         top_movies_group.setLayout(top_movies_layout)
-        layout.addWidget(top_movies_group)
+        layout.addWidget(top_movies_group, stretch=0)
 
     """ def create_recommendations_section(self, layout):
         self.recommendations_group = QGroupBox("Recommandations")
