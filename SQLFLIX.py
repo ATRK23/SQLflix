@@ -17,7 +17,7 @@ DB_CONFIG = {
     'host': 'localhost',
     'port': '5432'
 }
-
+#sa
 class LoginWindow(QMainWindow):
     def __init__(self):
         super().__init__()
