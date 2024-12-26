@@ -281,14 +281,13 @@ class HomePage(QMainWindow):
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
             query = """SELECT M.title, 
-       STRING_AGG(G.name, ', ' ORDER BY G.name) AS genres, 
-       M.release_date, 
-       M.vote_average
-FROM movies AS M
-INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
-INNER JOIN genres AS G ON MG.genre_id = G.genre_id
-GROUP BY M.title, M.release_date, M.vote_average;
-"""
+                        STRING_AGG(G.name, ', ' ORDER BY G.name) AS genres, 
+                        M.release_date, 
+                        M.vote_average
+                        FROM movies AS M
+                        INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
+                        INNER JOIN genres AS G ON MG.genre_id = G.genre_id
+                        GROUP BY M.title, M.release_date, M.vote_average;"""
             cursor.execute(query)
             movies = cursor.fetchall()
 
