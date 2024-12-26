@@ -15,7 +15,7 @@ DB_CONFIG = {
     'user': 'postgres',
     'password': 'database12@',
     'host': 'localhost',
-    'port': '5432'
+    #'port': '5432'
 }
 
 class LoginWindow(QMainWindow):
