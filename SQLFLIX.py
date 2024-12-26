@@ -31,16 +31,21 @@ def get_movie_poster_api(movie_name):
         'api_key': tmdb_api_key,
         'query': movie_name
     }
-    response = requests.get(search_url, params=params)
-    data = response.json()
-    
-    if data['results']:
-        movie = data['results'][0]
-        poster_path = movie['poster_path']
-        poster_url = f"{IMAGE_BASE_URL}{poster_path}"
-        return poster_url
-    else:
-        print("Film non trouvé.")
+    try:
+        response = requests.get(search_url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        if data['results']:
+            movie = data['results'][0]
+            poster_path = movie['poster_path']
+            poster_url = f"{IMAGE_BASE_URL}{poster_path}"
+            return poster_url
+        else:
+            print("Film non trouvé.")
+            return None
+    except ConnectionError:
+        print("Erreur de connexion : Impossible d'accéder à l'API TMDB.")
         return None
 
 class LoginWindow(QMainWindow):
