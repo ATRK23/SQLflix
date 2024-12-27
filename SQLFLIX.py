@@ -4,7 +4,7 @@ import hashlib
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QLineEdit, QPushButton,
     QLabel, QMessageBox, QWidget, QDialog, QSpacerItem, QSizePolicy, QHBoxLayout, QCheckBox,
-    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout, QHeaderView
+    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout, QHeaderView, QInputDialog
 )
 from PyQt5.QtGui import QPixmap, QFont, QIcon
 from PyQt5.QtCore import Qt
@@ -14,7 +14,7 @@ import requests
 DB_CONFIG = {
     'dbname': 'sqlflix',
     'user': 'postgres',
-    'password': 'postgres',
+    'password': 'database12@',
     'host': 'localhost'
     #'port': '5432'
 }
@@ -234,6 +234,7 @@ class HomePage(QMainWindow):
         super().__init__()
 
         self.username = username
+        self.playlist_manager = PlaylistManager(DB_CONFIG)  
         self.setWindowTitle("SQLFLIX - Homepage")
         self.setGeometry(100, 100, 800, 600)
         
@@ -246,6 +247,7 @@ class HomePage(QMainWindow):
         self.create_search_bar(left_layout)
         self.create_all_movies_section(left_layout)
         self.create_top_movies_section(left_layout)
+        self.create_playlists_section(left_layout)
         #self.create_recommendations_section(left_layout)
         left_widget.setLayout(left_layout)
         
@@ -268,6 +270,8 @@ class HomePage(QMainWindow):
         main_widget = QWidget()
         main_widget.setLayout(main_layout)
         self.setCentralWidget(main_widget)
+        
+
 
     def create_search_bar(self, layout):
         search_layout = QHBoxLayout()
@@ -522,6 +526,135 @@ class HomePage(QMainWindow):
             print(f"Erreur lors de la récupération de l'ID du film: {e}")
             return None
 
+    def create_playlists_section(self, layout):
+        playlists_group = QGroupBox("My Playlists")
+        playlists_layout = QVBoxLayout()
+
+        # Table pour afficher les playlists
+        self.playlists_table = QTableWidget()
+        self.playlists_table.setColumnCount(2)
+        self.playlists_table.setHorizontalHeaderLabels(['Playlist Name', 'Actions'])
+        self.load_playlists()
+
+        # Bouton pour créer une nouvelle playlist
+        create_button = QPushButton("Create Playlist")
+        create_button.clicked.connect(self.create_playlist_ui)  # Lier au backend pour créer une playlist
+
+        # Ajout des widgets au layout
+        playlists_layout.addWidget(self.playlists_table)
+        playlists_layout.addWidget(create_button)
+        playlists_group.setLayout(playlists_layout)
+        layout.addWidget(playlists_group)
+
+    def load_playlists(self):
+        playlists = self.playlist_manager.get_user_playlists(self.get_user_id(self.username))  # Récupérer les playlists
+
+        self.playlists_table.setRowCount(len(playlists))
+        self.playlists_table.setColumnCount(3)  # Nombre de colonnes
+        self.playlists_table.setHorizontalHeaderLabels(['Playlist Name', 'View', 'Delete'])
+
+        for row, playlist in enumerate(playlists):
+            # Nom de la playlist
+            playlist_name = QTableWidgetItem(playlist[1])
+            self.playlists_table.setItem(row, 0, playlist_name)
+
+            # Bouton "View"
+            view_button = QPushButton("View")
+            view_button.clicked.connect(lambda _, pid=playlist[0]: self.view_playlist(pid))
+            self.playlists_table.setCellWidget(row, 1, view_button)
+
+            # Bouton "Delete"
+            delete_button = QPushButton("Delete")
+            delete_button.clicked.connect(lambda _, pid=playlist[0]: self.delete_playlist(pid))
+            self.playlists_table.setCellWidget(row, 2, delete_button)
+
+    def view_playlist(self, playlist_id, movies_table=None):
+        playlist_movies = self.playlist_manager.get_playlist_movies(playlist_id)
+
+        if not movies_table:
+            # Créer une nouvelle fenêtre uniquement si aucune table n'existe
+            self.dialog = QDialog(self)
+            self.dialog.setWindowTitle("Playlist Movies")
+            self.dialog.setGeometry(200, 200, 600, 400)
+
+            layout = QVBoxLayout(self.dialog)
+            movies_table = QTableWidget()
+            movies_table.setColumnCount(4)  # Inclure une colonne pour les actions
+            movies_table.setHorizontalHeaderLabels(['Title', 'Release Date', 'Rating', 'Actions'])
+
+            layout.addWidget(movies_table)
+            self.dialog.setLayout(layout)
+            self.dialog.show()
+
+        # Remplir la table
+        movies_table.setRowCount(len(playlist_movies))
+        for row, movie in enumerate(playlist_movies):
+            movies_table.setItem(row, 0, QTableWidgetItem(movie[0]))  # Title
+            movies_table.setItem(row, 1, QTableWidgetItem(str(movie[1])))  # Release Date
+            movies_table.setItem(row, 2, QTableWidgetItem(str(movie[2])))  # Rating
+
+            # Ajouter le bouton "Remove"
+            remove_button = QPushButton("Remove")
+            remove_button.clicked.connect(lambda _, mid=movie[3]: self.remove_movie_from_playlist(playlist_id, mid, movies_table))
+            movies_table.setCellWidget(row, 3, remove_button)
+
+        # Ajuster la taille des colonnes
+        movies_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+
+    def create_playlist_ui(self):
+        # Boîte de dialogue pour demander le nom de la playlist
+        playlist_name, ok = QInputDialog.getText(self, "Create Playlist", "Enter playlist name:")
+        if ok and playlist_name.strip():  # Vérifier si un nom a été saisi
+           # Appeler le backend pour créer la playlist
+            playlist_id = self.playlist_manager.create_playlist(self.get_user_id(self.username), playlist_name.strip())
+            if playlist_id:
+                QMessageBox.information(self, "Success", f"Playlist '{playlist_name}' created successfully!")
+                self.load_playlists()  # Recharger la liste des playlists
+            else:
+                QMessageBox.warning(self, "Error", "Failed to create playlist.")
+        else:
+            QMessageBox.warning(self, "Invalid Input", "Playlist name cannot be empty.")
+
+    def add_movie_to_playlist_ui(self, movie_id):
+        playlists = self.playlist_manager.get_user_playlists(self.get_user_id(self.username))
+        playlist_names = [playlist[1] for playlist in playlists]
+
+        playlist_name, ok = QInputDialog.getItem(self, "Add to Playlist", "Select playlist:", playlist_names, editable=False)
+        if ok and playlist_name:
+            playlist_id = next(p[0] for p in playlists if p[1] == playlist_name)
+            self.playlist_manager.add_movie_to_playlist(playlist_id, movie_id)
+            QMessageBox.information(self, "Success", "Movie added to playlist!")
+
+    def remove_movie_from_playlist(self, playlist_id, movie_id, movies_table):
+        try:
+            # Supprimer le film de la playlist via PlaylistManager
+            self.playlist_manager.remove_movie_from_playlist(playlist_id, movie_id)
+            QMessageBox.information(self, "Success", "Movie removed from playlist successfully!")
+
+            # Rafraîchir la vue de la playlist
+            self.view_playlist(playlist_id, movies_table)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to remove movie: {e}")
+
+    def delete_playlist(self, playlist_id):
+        reply = QMessageBox.question(
+            self, "Confirm Deletion",
+            "Are you sure you want to delete this playlist? This action cannot be undone.",
+            QMessageBox.Yes | QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            try:
+                # Supprimer la playlist via PlaylistManager
+                self.playlist_manager.delete_playlist(playlist_id)
+                QMessageBox.information(self, "Success", "Playlist deleted successfully!")
+
+                # Recharger la liste des playlists
+                self.load_playlists()
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to delete playlist: {e}")
+
 #----------------------------------------------------------
 
 def get_movie_date(movie_id):
@@ -555,7 +688,6 @@ def get_movie_name(movie_id):
     except Exception as e:
         print(f"Error: {e}")
         return "Movie Page"
-
 
 class MoviePage(QMainWindow):
     def __init__(self, movie_id, user_id):
@@ -592,7 +724,12 @@ class MoviePage(QMainWindow):
         poster_label.setPixmap(poster_pixmap)
         poster_label.setAlignment(Qt.AlignCenter)
         left_layout.addWidget(poster_label)
-
+        
+        # Bouton pour ajouter le film à une playlist
+        add_to_playlist_button = QPushButton("Add to Playlist")
+        add_to_playlist_button.clicked.connect(self.add_to_playlist_ui)
+        left_layout.addWidget(add_to_playlist_button)  
+        
         # Partie droite : Sections
         right_layout.addWidget(self.create_ratings_section())
         right_layout.addWidget(self.create_like_dislike_section(user_id, movie_id))
@@ -968,8 +1105,122 @@ class MoviePage(QMainWindow):
 
         crew_group.setLayout(crew_layout)
         return crew_group
+    
+    def add_to_playlist_ui(self):
+        # Obtenez les playlists de l'utilisateur via PlaylistManager
+        playlist_manager = PlaylistManager(DB_CONFIG)
+        playlists = playlist_manager.get_user_playlists(self.user_id)
+        playlist_names = [playlist[1] for playlist in playlists]  # Liste des noms des playlists
 
+        if not playlist_names:
+            QMessageBox.warning(self, "No Playlists", "You don't have any playlists. Please create one first.")
+            return
+
+        # Boîte de dialogue pour choisir une playlist
+        playlist_name, ok = QInputDialog.getItem(self, "Add to Playlist", "Select playlist:", playlist_names, editable=False)
+        if ok and playlist_name:
+            # Trouver l'ID de la playlist sélectionnée
+            playlist_id = next(p[0] for p in playlists if p[1] == playlist_name)
+            playlist_manager.add_movie_to_playlist(playlist_id, self.movie_id)
+            QMessageBox.information(self, "Success", f"Movie added to playlist '{playlist_name}'!")
+        else:
+            QMessageBox.warning(self, "Action Cancelled", "No playlist selected.")
+
+
+class PlaylistManager:
+    def __init__(self, db_config):
+        self.db_config = db_config
         
+    def create_playlist(self, user_id, playlist_name):
+        try:
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+            query = "INSERT INTO playlists (user_id, name) VALUES (%s, %s) RETURNING playlist_id;"
+            cursor.execute(query, (user_id, playlist_name))
+            playlist_id = cursor.fetchone()[0]
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return playlist_id
+        except Exception as e:
+            print(f"Error creating playlist: {e}")
+            return None
+
+    def add_movie_to_playlist(self, playlist_id, movie_id):
+        try:
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+            query = "INSERT INTO playlist_movies (playlist_id, movie_id) VALUES (%s, %s);"
+            cursor.execute(query, (playlist_id, movie_id))
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error adding movie to playlist: {e}")
+
+
+    def remove_movie_from_playlist(self, playlist_id, movie_id):
+        try:
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+            query = "DELETE FROM playlist_movies WHERE playlist_id = %s AND movie_id = %s;"
+            cursor.execute(query, (playlist_id, movie_id))
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error removing movie from playlist: {e}")
+
+    def get_user_playlists(self, user_id):
+        try:
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+            query = "SELECT playlist_id, name FROM playlists WHERE user_id = %s;"
+            cursor.execute(query, (user_id,))
+            playlists = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return playlists
+        except Exception as e:
+            print(f"Error fetching playlists: {e}")
+            return []
+
+    def get_playlist_movies(self, playlist_id):
+        try:
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+            query = """
+            SELECT M.title, M.release_date, M.vote_average, M.movie_id
+            FROM playlist_movies AS PM
+            JOIN movies AS M ON PM.movie_id = M.movie_id
+         WHERE PM.playlist_id = %s;
+            """
+            cursor.execute(query, (playlist_id,))
+            movies = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return movies
+        except Exception as e:
+            print(f"Error fetching playlist movies: {e}")
+            return []
+        
+    def delete_playlist(self, playlist_id):
+        try:
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+
+            # Supprimer la playlist et ses films associés
+            query = "DELETE FROM playlists WHERE playlist_id = %s;"
+            cursor.execute(query, (playlist_id,))
+            conn.commit()
+
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error deleting playlist: {e}")
+            raise
+
+
         
 if __name__ == "__main__":
     app = QApplication(sys.argv)
