@@ -309,7 +309,7 @@ class HomePage(QMainWindow):
             cursor = conn.cursor()
             query = """SELECT 
         M.title, 
-        string_agg(G.name, ', ') AS genres,  -- Concatène tous les genres séparés par une virgule
+        string_agg(G.name, ', ') AS genres,
         M.release_date, 
         M.vote_average
     FROM 
@@ -318,8 +318,11 @@ class HomePage(QMainWindow):
         movie_genres AS MG ON M.movie_id = MG.movie_id
     INNER JOIN 
         genres AS G ON MG.genre_id = G.genre_id
+    WHERE vote_count > 1000
     GROUP BY 
-        M.movie_id, M.title, M.release_date, M.vote_average;"""
+        M.movie_id, M.title, M.release_date, M.vote_average
+    ORDER BY (M.vote_average * LOG(1 + M.vote_count)) DESC
+    LIMIT 10;"""
             cursor.execute(query)
             movies = cursor.fetchall()
 
