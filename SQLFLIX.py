@@ -4,7 +4,7 @@ import hashlib
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QLineEdit, QPushButton,
     QLabel, QMessageBox, QWidget, QDialog, QSpacerItem, QSizePolicy, QHBoxLayout, QCheckBox,
-    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout, QHeaderView, QInputDialog
+    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout, QHeaderView, QInputDialog, QComboBox
 )
 from PyQt5.QtGui import QPixmap, QFont, QIcon
 from PyQt5.QtCore import Qt
@@ -276,12 +276,72 @@ class HomePage(QMainWindow):
     def create_search_bar(self, layout):
         search_layout = QHBoxLayout()
 
+        # Menu déroulant pour les genres
+        self.genre_filter = QComboBox(self)
+        self.genre_filter.addItem("All Genres")  # Option par défaut
+        self.load_genres()  # Charger les genres disponibles
+        self.genre_filter.currentIndexChanged.connect(self.filter_movies_by_genre)
+        search_layout.addWidget(self.genre_filter)
+
+        # Barre de recherche
         self.search_input = QLineEdit(self)
         self.search_input.setPlaceholderText("Search for a movie...")
         self.search_input.textChanged.connect(self.filter_movies)
 
         search_layout.addWidget(self.search_input)
         layout.addLayout(search_layout)
+
+    def load_genres(self):
+        """Charge les genres disponibles à partir de la base de données et les ajoute au menu déroulant."""
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+            query = "SELECT name FROM genres;"
+            cursor.execute(query)
+            genres = cursor.fetchall()
+            for genre in genres:
+                self.genre_filter.addItem(genre[0])  # Ajouter chaque genre à la liste
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error loading genres: {e}")
+
+    def filter_movies_by_genre(self):
+        """Filtre les films en fonction du genre sélectionné."""
+        selected_genre = self.genre_filter.currentText()
+        if selected_genre == "All Genres":
+            self.load_all_movies(self.all_movies_table)  # Charger tous les films
+        else:
+            self.load_movies_by_genre(selected_genre)
+
+    def load_movies_by_genre(self, genre):
+        """Charge les films correspondant au genre sélectionné."""
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+            query = """
+                SELECT M.title, G.name as genre, M.release_date, M.vote_average
+                FROM movies AS M
+                INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
+                INNER JOIN genres AS G ON MG.genre_id = G.genre_id
+                WHERE G.name = %s
+                ORDER BY M.title;
+            """
+            cursor.execute(query, (genre,))
+            movies = cursor.fetchall()
+
+            self.all_movies_table.setRowCount(len(movies))
+            for row, movie in enumerate(movies):
+                self.all_movies_table.setItem(row, 0, QTableWidgetItem(movie[0]))
+                self.all_movies_table.setItem(row, 1, QTableWidgetItem(movie[1]))
+                self.all_movies_table.setItem(row, 2, QTableWidgetItem(str(movie[2])))
+                self.all_movies_table.setItem(row, 3, QTableWidgetItem(str(movie[3])))
+
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error loading movies by genre: {e}")
+
 
     def filter_movies(self):
         search_text = self.search_input.text().lower()
@@ -355,7 +415,6 @@ class HomePage(QMainWindow):
                         INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
                         INNER JOIN genres AS G ON MG.genre_id = G.genre_id
                         GROUP BY M.title, M.release_date, M.vote_average;"""
-
             cursor.execute(query)
             movies = cursor.fetchall()
 
@@ -391,7 +450,6 @@ class HomePage(QMainWindow):
                             M.movie_id, M.title, M.release_date, M.vote_average
                         ORDER BY (M.vote_average * LOG(1 + M.vote_count)) DESC
                         LIMIT 10;"""
-
             cursor.execute(query)
             movies = cursor.fetchall()
 
@@ -443,7 +501,6 @@ class HomePage(QMainWindow):
                     INNER JOIN genres AS G ON MG.genre_id = G.genre_id
                     WHERE M.title ILIKE %s
                     GROUP BY M.movie_id, M.title, M.release_date, M.vote_average;"""
-
             cursor.execute(query, ('%' + search_text + '%',))
             movies = cursor.fetchall()
 
