@@ -347,10 +347,15 @@ class HomePage(QMainWindow):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            query = """SELECT M.title, G.name as genre, M.release_date, M.vote_average
-                    FROM movies AS M
-                    INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
-                    INNER JOIN genres AS G ON MG.genre_id = G.genre_id;"""
+            query = """SELECT M.title, 
+                        STRING_AGG(G.name, ', ' ORDER BY G.name) AS genres, 
+                        M.release_date, 
+                        M.vote_average
+                        FROM movies AS M
+                        INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
+                        INNER JOIN genres AS G ON MG.genre_id = G.genre_id
+                        GROUP BY M.title, M.release_date, M.vote_average;"""
+
             cursor.execute(query)
             movies = cursor.fetchall()
 
@@ -370,12 +375,23 @@ class HomePage(QMainWindow):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            query = """SELECT M.title, G.name as genre, M.release_date, M.vote_average
-                        FROM movies AS M
-                        INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
-                        INNER JOIN genres AS G ON MG.genre_id = G.genre_id
-                        ORDER BY M.vote_average DESC
+            query = """ SELECT 
+                                M.title, 
+                                string_agg(G.name, ', ') AS genres,
+                                M.release_date, 
+                                M.vote_average
+                        FROM 
+                                movies AS M
+                                INNER JOIN 
+                                movie_genres AS MG ON M.movie_id = MG.movie_id
+                                INNER JOIN 
+                                genres AS G ON MG.genre_id = G.genre_id
+                        WHERE vote_count > 1000
+                        GROUP BY 
+                            M.movie_id, M.title, M.release_date, M.vote_average
+                        ORDER BY (M.vote_average * LOG(1 + M.vote_count)) DESC
                         LIMIT 10;"""
+
             cursor.execute(query)
             movies = cursor.fetchall()
 
@@ -421,11 +437,13 @@ class HomePage(QMainWindow):
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
 
-            query = """SELECT M.title, G.name as genre, M.release_date, M.vote_average
+            query = """SELECT M.title, string_agg(G.name, ', ') AS genres, M.release_date, M.vote_average
                     FROM movies AS M
                     INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
                     INNER JOIN genres AS G ON MG.genre_id = G.genre_id
-                    WHERE M.title ILIKE %s;"""
+                    WHERE M.title ILIKE %s
+                    GROUP BY M.movie_id, M.title, M.release_date, M.vote_average;"""
+
             cursor.execute(query, ('%' + search_text + '%',))
             movies = cursor.fetchall()
 
