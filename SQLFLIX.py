@@ -212,7 +212,7 @@ class HomePage(QMainWindow):
         self.create_search_bar(main_layout)
         self.create_all_movies_section(main_layout)
         self.create_top_movies_section(main_layout)
-        self.create_recommendations_section(main_layout)
+#       self.create_recommendations_section(main_layout)
 
         self.logout_button = QPushButton("Logout")
         self.logout_button.clicked.connect(self.logout)
@@ -263,7 +263,7 @@ class HomePage(QMainWindow):
         top_movies_group.setLayout(top_movies_layout)
         layout.addWidget(top_movies_group)
 
-    def create_recommendations_section(self, layout):
+    """     def create_recommendations_section(self, layout):
         recommendations_group = QGroupBox("Recommandations")
         recommendations_layout = QVBoxLayout()
 
@@ -274,7 +274,7 @@ class HomePage(QMainWindow):
 
         recommendations_layout.addWidget(recommendations_table)
         recommendations_group.setLayout(recommendations_layout)
-        layout.addWidget(recommendations_group)
+        layout.addWidget(recommendations_group) """
 
     def load_all_movies(self, table):
         try:
