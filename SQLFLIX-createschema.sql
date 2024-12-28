@@ -116,3 +116,15 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL, -- Hashed password
     role VARCHAR(20) DEFAULT 'user'
 );
+
+CREATE TABLE user_movie_interactions (
+    user_id INT NOT NULL,                   -- utilisateur
+    movie_id INT NOT NULL,                  -- film
+    liked BOOLEAN,                          -- TRUE si like, FALSE si dislike, NULL si rien
+    watch_status VARCHAR(20) CHECK (watch_status IN ('seen', 'want', 'null')), 
+    watch_date DATE,                           -- Date à laquelle l'utilisateur a vu le film, NULL si non vu
+    rating INT CHECK (rating BETWEEN 0 AND 5), -- Note sur 5, NULL si aucune note
+    PRIMARY KEY (user_id, movie_id),        -- Un utilisateur ne peut interagir qu'une fois avec un film
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (movie_id) REFERENCES movies(movie_id) ON DELETE CASCADE
+);
