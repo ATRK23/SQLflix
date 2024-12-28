@@ -17,7 +17,7 @@ DB_CONFIG = {
     'host': 'localhost',
     'port': '5432'
 }
-#sa
+
 class LoginWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -212,7 +212,7 @@ class HomePage(QMainWindow):
         self.create_search_bar(main_layout)
         self.create_all_movies_section(main_layout)
         self.create_top_movies_section(main_layout)
-        self.create_recommendations_section(main_layout)
+#       self.create_recommendations_section(main_layout)
 
         self.logout_button = QPushButton("Logout")
         self.logout_button.clicked.connect(self.logout)
@@ -263,7 +263,7 @@ class HomePage(QMainWindow):
         top_movies_group.setLayout(top_movies_layout)
         layout.addWidget(top_movies_group)
 
-    def create_recommendations_section(self, layout):
+    """     def create_recommendations_section(self, layout):
         recommendations_group = QGroupBox("Recommandations")
         recommendations_layout = QVBoxLayout()
 
@@ -274,16 +274,20 @@ class HomePage(QMainWindow):
 
         recommendations_layout.addWidget(recommendations_table)
         recommendations_group.setLayout(recommendations_layout)
-        layout.addWidget(recommendations_group)
+        layout.addWidget(recommendations_group) """
 
     def load_all_movies(self, table):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            query = """SELECT M.title, G.name as genre, M.release_date, M.vote_average
-                    FROM movies AS M
-                    INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
-                    INNER JOIN genres AS G ON MG.genre_id = G.genre_id;"""
+            query = """SELECT M.title, 
+                        STRING_AGG(G.name, ', ' ORDER BY G.name) AS genres, 
+                        M.release_date, 
+                        M.vote_average
+                        FROM movies AS M
+                        INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
+                        INNER JOIN genres AS G ON MG.genre_id = G.genre_id
+                        GROUP BY M.title, M.release_date, M.vote_average;"""
             cursor.execute(query)
             movies = cursor.fetchall()
 
@@ -303,12 +307,22 @@ class HomePage(QMainWindow):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            query = """SELECT M.title, G.name as genre, M.release_date, M.vote_average
-                        FROM movies AS M
-                        INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
-                        INNER JOIN genres AS G ON MG.genre_id = G.genre_id
-                        ORDER BY M.vote_average DESC
-                        LIMIT 10;"""
+            query = """SELECT 
+        M.title, 
+        string_agg(G.name, ', ') AS genres,
+        M.release_date, 
+        M.vote_average
+    FROM 
+        movies AS M
+    INNER JOIN 
+        movie_genres AS MG ON M.movie_id = MG.movie_id
+    INNER JOIN 
+        genres AS G ON MG.genre_id = G.genre_id
+    WHERE vote_count > 1000
+    GROUP BY 
+        M.movie_id, M.title, M.release_date, M.vote_average
+    ORDER BY (M.vote_average * LOG(1 + M.vote_count)) DESC
+    LIMIT 10;"""
             cursor.execute(query)
             movies = cursor.fetchall()
 
@@ -354,11 +368,12 @@ class HomePage(QMainWindow):
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
 
-            query = """SELECT M.title, G.name as genre, M.release_date, M.vote_average
+            query = """SELECT M.title, string_agg(G.name, ', ') AS genres, M.release_date, M.vote_average
                     FROM movies AS M
                     INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
                     INNER JOIN genres AS G ON MG.genre_id = G.genre_id
-                    WHERE M.title ILIKE %s;"""
+                    WHERE M.title ILIKE %s
+                    GROUP BY M.movie_id, M.title, M.release_date, M.vote_average;"""
             cursor.execute(query, ('%' + search_text + '%',))
             movies = cursor.fetchall()
 
