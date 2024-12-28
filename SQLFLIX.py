@@ -15,7 +15,7 @@ DB_CONFIG = {
     'dbname': 'sqlflix',
     'user': 'postgres',
     'password': 'database12@',
-    'host': 'localhost'
+    'host': 'localhost',
     #'port': '5432'
 }
 
@@ -369,6 +369,8 @@ class HomePage(QMainWindow):
         self.all_movies_table.setColumnCount(4)
         self.all_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating'])
         self.load_all_movies(self.all_movies_table)
+        
+        self.all_movies_table.setSortingEnabled(True)
         
         self.all_movies_table.resizeColumnsToContents()
         header = self.all_movies_table.horizontalHeader()
