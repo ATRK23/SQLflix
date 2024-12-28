@@ -362,7 +362,7 @@ class HomePage(QMainWindow):
 
 
     def create_all_movies_section(self, layout):
-        all_movies_group = QGroupBox("Tous les Films")
+        all_movies_group = QGroupBox("All movies")
         all_movies_layout = QVBoxLayout()
 
         self.all_movies_table = QTableWidget()

@@ -15,8 +15,6 @@ CREATE TABLE movies (
     vote_average FLOAT,              -- Average vote score for the movie
     vote_count INT                   -- Total number of votes received
 
-
-
 );
 
 CREATE TABLE movie_cast (
