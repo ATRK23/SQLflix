@@ -4,7 +4,7 @@ import hashlib
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QLineEdit, QPushButton,
     QLabel, QMessageBox, QWidget, QDialog, QSpacerItem, QSizePolicy, QHBoxLayout, QCheckBox,
-    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout
+    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout, QHeaderView
 )
 from PyQt5.QtGui import QPixmap, QFont, QIcon
 from PyQt5.QtCore import Qt
@@ -246,7 +246,7 @@ class HomePage(QMainWindow):
         self.create_search_bar(left_layout)
         self.create_all_movies_section(left_layout)
         self.create_top_movies_section(left_layout)
-        self.create_recommendations_section(left_layout)
+        #self.create_recommendations_section(left_layout)
         left_widget.setLayout(left_layout)
         
         right_widget = QWidget()
@@ -293,11 +293,15 @@ class HomePage(QMainWindow):
         self.all_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating'])
         self.load_all_movies(self.all_movies_table)
         
+        self.all_movies_table.resizeColumnsToContents()
+        header = self.all_movies_table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+        
         self.all_movies_table.cellDoubleClicked.connect(self.on_movie_double_clicked)
 
         all_movies_layout.addWidget(self.all_movies_table)
         all_movies_group.setLayout(all_movies_layout)
-        layout.addWidget(all_movies_group)
+        layout.addWidget(all_movies_group, stretch=1)
     
     def create_top_movies_section(self, layout):
         top_movies_group = QGroupBox("Top 10 Films")
@@ -308,13 +312,19 @@ class HomePage(QMainWindow):
         self.top_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating'])
         self.load_top_movies(self.top_movies_table)
         
+        self.top_movies_table.resizeColumnsToContents()
+        header = self.top_movies_table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+        
+        self.top_movies_table.setFixedHeight(10 * self.top_movies_table.verticalHeader().defaultSectionSize())
+        
         self.top_movies_table.cellDoubleClicked.connect(self.on_movie_double_clicked)
 
         top_movies_layout.addWidget(self.top_movies_table)
         top_movies_group.setLayout(top_movies_layout)
-        layout.addWidget(top_movies_group)
+        layout.addWidget(top_movies_group, stretch=0)
 
-    def create_recommendations_section(self, layout):
+    """ def create_recommendations_section(self, layout):
         self.recommendations_group = QGroupBox("Recommandations")
         self.recommendations_layout = QVBoxLayout()
 
@@ -327,7 +337,7 @@ class HomePage(QMainWindow):
 
         self.recommendations_layout.addWidget(self.recommendations_table)
         self.recommendations_group.setLayout(self.recommendations_layout)
-        layout.addWidget(self.recommendations_group)
+        layout.addWidget(self.recommendations_group) """
 
     def load_all_movies(self, table):
         try:
@@ -612,14 +622,16 @@ class MoviePage(QMainWindow):
         cast_crew_widget.setLayout(cast_crew_layout)
         right_layout.addWidget(cast_crew_widget)
 
-        left_widget = QWidget()
-        left_widget.setLayout(left_layout)
-
         right_widget = QWidget()
         right_widget.setLayout(right_layout)
+        right_scroll_area = QScrollArea()
+        right_scroll_area.setWidget(right_widget)
+        right_scroll_area.setWidgetResizable(True)
 
+        left_widget = QWidget()
+        left_widget.setLayout(left_layout)
         splitter.addWidget(left_widget)
-        splitter.addWidget(right_widget)
+        splitter.addWidget(right_scroll_area)
 
         central_widget = QWidget()
         central_layout = QVBoxLayout()
@@ -807,16 +819,17 @@ class MoviePage(QMainWindow):
 
         slider.valueChanged.connect(update_rating)
         slider_layout.addWidget(slider)
-
-        # Labels pour indiquer les valeurs du slider
-        slider_labels_layout = QGridLayout()
+            
+        labels_layout = QHBoxLayout()  # Utiliser un layout horizontal pour aligner les labels
         for i in range(6):
             label = QLabel(str(i))
             label.setAlignment(Qt.AlignCenter)
-            slider_labels_layout.addWidget(label, 0, i)
+            labels_layout.addWidget(label)
+            if i < 5:  # Ajouter un stretch entre les labels sauf après le dernier
+                labels_layout.addStretch(1)
 
         ratings_layout.addLayout(slider_layout)
-        ratings_layout.addLayout(slider_labels_layout)
+        ratings_layout.addLayout(labels_layout)
 
         ratings_group.setLayout(ratings_layout)
         return ratings_group
