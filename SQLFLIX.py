@@ -14,9 +14,9 @@ import requests
 DB_CONFIG = {
     'dbname': 'sqlflix',
     'user': 'postgres',
-    'password': 'postgres',
-    'host': 'localhost'
-    #'port': '5432'
+    'password': 'database12@',
+    'host': 'localhost',
+    'port': '5432'
 }
 
 #API TMDB pour les poster
@@ -285,7 +285,7 @@ class HomePage(QMainWindow):
         self.update_movie_table(filtered_movies)
 
     def create_all_movies_section(self, layout):
-        all_movies_group = QGroupBox("Tous les Films")
+        all_movies_group = QGroupBox("All movies")
         all_movies_layout = QVBoxLayout()
 
         self.all_movies_table = QTableWidget()
