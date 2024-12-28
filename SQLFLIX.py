@@ -4,7 +4,7 @@ import hashlib
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QLineEdit, QPushButton,
     QLabel, QMessageBox, QWidget, QDialog, QSpacerItem, QSizePolicy, QHBoxLayout, QCheckBox,
-    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout, QHeaderView
+    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout, QHeaderView, QInputDialog, QComboBox
 )
 from PyQt5.QtGui import QPixmap, QFont, QIcon
 from PyQt5.QtCore import Qt
@@ -15,8 +15,8 @@ DB_CONFIG = {
     'dbname': 'sqlflix',
     'user': 'postgres',
     'password': 'database12@',
-    'host': 'localhost',
-    'port': '5432'
+    'host': 'localhost'
+    #'port': '5432'
 }
 
 #API TMDB pour les poster
@@ -234,6 +234,7 @@ class HomePage(QMainWindow):
         super().__init__()
 
         self.username = username
+        self.playlist_manager = PlaylistManager(DB_CONFIG)  
         self.setWindowTitle("SQLFLIX - Homepage")
         self.setGeometry(100, 100, 800, 600)
         
@@ -246,6 +247,7 @@ class HomePage(QMainWindow):
         self.create_search_bar(left_layout)
         self.create_all_movies_section(left_layout)
         self.create_top_movies_section(left_layout)
+        self.create_playlists_section(left_layout)
         #self.create_recommendations_section(left_layout)
         left_widget.setLayout(left_layout)
         
@@ -268,21 +270,96 @@ class HomePage(QMainWindow):
         main_widget = QWidget()
         main_widget.setLayout(main_layout)
         self.setCentralWidget(main_widget)
+        
+
 
     def create_search_bar(self, layout):
         search_layout = QHBoxLayout()
 
-        self.search_input = QLineEdit(self)
-        self.search_input.setPlaceholderText("Search for a movie...")
-        self.search_input.textChanged.connect(self.filter_movies)
+        # Menu déroulant pour les genres
+        self.genre_filter = QComboBox(self)
+        self.genre_filter.addItem("All Genres")  # Option par défaut
+        self.load_genres()  # Charger les genres disponibles
+        self.genre_filter.currentIndexChanged.connect(self.filter_movies)
+        search_layout.addWidget(self.genre_filter)
 
+        # Champ pour rechercher par titre
+        self.search_input = QLineEdit(self)
+        self.search_input.setPlaceholderText("Search by title...")
+        self.search_input.textChanged.connect(self.filter_movies)
         search_layout.addWidget(self.search_input)
+
+        # Champ pour rechercher par mot-clé
+        self.keyword_input = QLineEdit(self)
+        self.keyword_input.setPlaceholderText("Search by keyword...")
+        self.keyword_input.textChanged.connect(self.filter_movies)
+        search_layout.addWidget(self.keyword_input)
+
         layout.addLayout(search_layout)
 
+
+    def load_genres(self):
+        """Charge les genres disponibles à partir de la base de données et les ajoute au menu déroulant."""
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+            query = "SELECT name FROM genres;"
+            cursor.execute(query)
+            genres = cursor.fetchall()
+            for genre in genres:
+                self.genre_filter.addItem(genre[0])  # Ajouter chaque genre à la liste
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error loading genres: {e}")
+
+
+    def filter_movies_by_genre(self):
+        """Filtre les films en fonction du genre sélectionné."""
+        selected_genre = self.genre_filter.currentText()
+        if selected_genre == "All Genres":
+            self.load_all_movies(self.all_movies_table)  # Charger tous les films
+        else:
+            self.load_movies_by_genre(selected_genre)
+
+    def load_movies_by_genre(self, genre):
+        """Charge les films correspondant au genre sélectionné."""
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+            query = """
+                SELECT M.title, G.name as genre, M.release_date, M.vote_average
+                FROM movies AS M
+                INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
+                INNER JOIN genres AS G ON MG.genre_id = G.genre_id
+                WHERE G.name = %s
+                ORDER BY M.title;
+            """
+            cursor.execute(query, (genre,))
+            movies = cursor.fetchall()
+
+            self.all_movies_table.setRowCount(len(movies))
+            for row, movie in enumerate(movies):
+                self.all_movies_table.setItem(row, 0, QTableWidgetItem(movie[0]))
+                self.all_movies_table.setItem(row, 1, QTableWidgetItem(movie[1]))
+                self.all_movies_table.setItem(row, 2, QTableWidgetItem(str(movie[2])))
+                self.all_movies_table.setItem(row, 3, QTableWidgetItem(str(movie[3])))
+
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error loading movies by genre: {e}")
+
+
     def filter_movies(self):
-        search_text = self.search_input.text().lower()
-        filtered_movies = self.get_filtered_movies(search_text)
+        """Filtre les films en fonction du titre, des mots-clés, et du genre."""
+        selected_genre = self.genre_filter.currentText()
+        search_text = self.search_input.text().strip().lower()
+        keyword = self.keyword_input.text().strip().lower()
+
+        filtered_movies = self.get_filtered_movies(selected_genre, search_text, keyword)
         self.update_movie_table(filtered_movies)
+
 
     def create_all_movies_section(self, layout):
         all_movies_group = QGroupBox("All movies")
@@ -340,52 +417,63 @@ class HomePage(QMainWindow):
         layout.addWidget(self.recommendations_group) """
 
     def load_all_movies(self, table):
+        """Charge tous les films avec leurs genres combinés dans une seule colonne."""
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            query = """SELECT M.title, 
-                        STRING_AGG(G.name, ', ' ORDER BY G.name) AS genres, 
-                        M.release_date, 
-                        M.vote_average
-                        FROM movies AS M
-                        INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
-                        INNER JOIN genres AS G ON MG.genre_id = G.genre_id
-                        GROUP BY M.title, M.release_date, M.vote_average;"""
+            query = """
+                SELECT 
+                    M.title,
+                    STRING_AGG(DISTINCT G.name, ', ') AS genres, 
+                    M.release_date, 
+                    M.vote_average
+                FROM 
+                    movies AS M
+                INNER JOIN 
+                    movie_genres AS MG ON M.movie_id = MG.movie_id
+                INNER JOIN 
+                    genres AS G ON MG.genre_id = G.genre_id
+                GROUP BY 
+                    M.movie_id, M.title, M.release_date, M.vote_average
+                ORDER BY 
+                    M.title;
+            """
             cursor.execute(query)
             movies = cursor.fetchall()
 
             table.setRowCount(len(movies))
             for row, movie in enumerate(movies):
-                table.setItem(row, 0, QTableWidgetItem(movie[0]))
-                table.setItem(row, 1, QTableWidgetItem(movie[1]))
-                table.setItem(row, 2, QTableWidgetItem(str(movie[2])))
-                table.setItem(row, 3, QTableWidgetItem(str(movie[3])))
+                table.setItem(row, 0, QTableWidgetItem(movie[0]))  # Titre
+                table.setItem(row, 1, QTableWidgetItem(movie[1]))  # Genres
+                table.setItem(row, 2, QTableWidgetItem(str(movie[2])))  # Date de sortie
+                table.setItem(row, 3, QTableWidgetItem(str(movie[3])))  # Moyenne des votes
 
             cursor.close()
             conn.close()
         except Exception as e:
             print(f"Error loading all movies: {e}")
 
+
     def load_top_movies(self, table):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            query = """SELECT 
-        M.title, 
-        string_agg(G.name, ', ') AS genres,
-        M.release_date, 
-        M.vote_average
-    FROM 
-        movies AS M
-    INNER JOIN 
-        movie_genres AS MG ON M.movie_id = MG.movie_id
-    INNER JOIN 
-        genres AS G ON MG.genre_id = G.genre_id
-    WHERE vote_count > 1000
-    GROUP BY 
-        M.movie_id, M.title, M.release_date, M.vote_average
-    ORDER BY (M.vote_average * LOG(1 + M.vote_count)) DESC
-    LIMIT 10;"""
+            query = """ SELECT 
+                                M.title, 
+                                string_agg(G.name, ', ') AS genres,
+                                M.release_date, 
+                                M.vote_average
+                        FROM 
+                                movies AS M
+                                INNER JOIN 
+                                movie_genres AS MG ON M.movie_id = MG.movie_id
+                                INNER JOIN 
+                                genres AS G ON MG.genre_id = G.genre_id
+                        WHERE vote_count > 1000
+                        GROUP BY 
+                            M.movie_id, M.title, M.release_date, M.vote_average
+                        ORDER BY (M.vote_average * LOG(1 + M.vote_count)) DESC
+                        LIMIT 10;"""
             cursor.execute(query)
             movies = cursor.fetchall()
 
@@ -426,32 +514,55 @@ class HomePage(QMainWindow):
         except Exception as e:
             print(f"Error loading recommendations: {e}")
 
-    def get_filtered_movies(self, search_text):
+    def get_filtered_movies(self, selected_genre, search_text, keyword):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
 
-            query = """SELECT M.title, string_agg(G.name, ', ') AS genres, M.release_date, M.vote_average
-                    FROM movies AS M
-                    INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
-                    INNER JOIN genres AS G ON MG.genre_id = G.genre_id
-                    WHERE M.title ILIKE %s
-                    GROUP BY M.movie_id, M.title, M.release_date, M.vote_average;"""
-            cursor.execute(query, ('%' + search_text + '%',))
+            query = """
+                SELECT 
+                    M.title,
+                    STRING_AGG(DISTINCT G.name, ', ') AS genres, 
+                    M.release_date, 
+                    M.vote_average
+                FROM 
+                    movies AS M
+                LEFT JOIN 
+                    movie_genres AS MG ON M.movie_id = MG.movie_id
+                LEFT JOIN 
+                    genres AS G ON MG.genre_id = G.genre_id
+                LEFT JOIN 
+                    movie_keywords AS MK ON M.movie_id = MK.movie_id
+                LEFT JOIN 
+                    keywords AS K ON MK.keyword_id = K.keyword_id
+                WHERE 
+                    (%s = 'All Genres' OR G.name = %s) AND
+                    (%s = '' OR M.title ILIKE %s) AND
+                    (%s = '' OR K.name ILIKE %s)
+                GROUP BY 
+                    M.movie_id, M.title, M.release_date, M.vote_average
+                ORDER BY 
+                    M.title;
+            """
+
+            cursor.execute(query, (
+                selected_genre, selected_genre,  # Filtrage par genre
+                search_text, f"%{search_text}%",  # Filtrage par titre
+                keyword, f"%{keyword}%"  # Filtrage par mot-clé
+            ))
             movies = cursor.fetchall()
-
-            return [{"title": movie[0], "genre": movie[1], "release_date": movie[2], "vote_average": movie[3]} for movie in movies]
-
-        except Exception as e:
-            print(f"Error: {e}")
-            return []
-        finally:
             cursor.close()
             conn.close()
 
+            return [{"title": movie[0], "genre": movie[1], "release_date": movie[2], "vote_average": movie[3]} for movie in movies]
+        except Exception as e:
+            print(f"Error fetching filtered movies: {e}")
+            return []
+
+
+
     def update_movie_table(self, movies):
         self.all_movies_table.setRowCount(len(movies))
-
         for row, movie in enumerate(movies):
             self.all_movies_table.setItem(row, 0, QTableWidgetItem(movie["title"]))
             self.all_movies_table.setItem(row, 1, QTableWidgetItem(movie["genre"]))
@@ -537,6 +648,135 @@ class HomePage(QMainWindow):
             print(f"Erreur lors de la récupération de l'ID du film: {e}")
             return None
 
+    def create_playlists_section(self, layout):
+        playlists_group = QGroupBox("My Playlists")
+        playlists_layout = QVBoxLayout()
+
+        # Table pour afficher les playlists
+        self.playlists_table = QTableWidget()
+        self.playlists_table.setColumnCount(2)
+        self.playlists_table.setHorizontalHeaderLabels(['Playlist Name', 'Actions'])
+        self.load_playlists()
+
+        # Bouton pour créer une nouvelle playlist
+        create_button = QPushButton("Create Playlist")
+        create_button.clicked.connect(self.create_playlist_ui)  # Lier au backend pour créer une playlist
+
+        # Ajout des widgets au layout
+        playlists_layout.addWidget(self.playlists_table)
+        playlists_layout.addWidget(create_button)
+        playlists_group.setLayout(playlists_layout)
+        layout.addWidget(playlists_group)
+
+    def load_playlists(self):
+        playlists = self.playlist_manager.get_user_playlists(self.get_user_id(self.username))  # Récupérer les playlists
+
+        self.playlists_table.setRowCount(len(playlists))
+        self.playlists_table.setColumnCount(3)  # Nombre de colonnes
+        self.playlists_table.setHorizontalHeaderLabels(['Playlist Name', 'View', 'Delete'])
+
+        for row, playlist in enumerate(playlists):
+            # Nom de la playlist
+            playlist_name = QTableWidgetItem(playlist[1])
+            self.playlists_table.setItem(row, 0, playlist_name)
+
+            # Bouton "View"
+            view_button = QPushButton("View")
+            view_button.clicked.connect(lambda _, pid=playlist[0]: self.view_playlist(pid))
+            self.playlists_table.setCellWidget(row, 1, view_button)
+
+            # Bouton "Delete"
+            delete_button = QPushButton("Delete")
+            delete_button.clicked.connect(lambda _, pid=playlist[0]: self.delete_playlist(pid))
+            self.playlists_table.setCellWidget(row, 2, delete_button)
+
+    def view_playlist(self, playlist_id, movies_table=None):
+        playlist_movies = self.playlist_manager.get_playlist_movies(playlist_id)
+
+        if not movies_table:
+            # Créer une nouvelle fenêtre uniquement si aucune table n'existe
+            self.dialog = QDialog(self)
+            self.dialog.setWindowTitle("Playlist Movies")
+            self.dialog.setGeometry(200, 200, 600, 400)
+
+            layout = QVBoxLayout(self.dialog)
+            movies_table = QTableWidget()
+            movies_table.setColumnCount(4)  # Inclure une colonne pour les actions
+            movies_table.setHorizontalHeaderLabels(['Title', 'Release Date', 'Rating', 'Actions'])
+
+            layout.addWidget(movies_table)
+            self.dialog.setLayout(layout)
+            self.dialog.show()
+
+        # Remplir la table
+        movies_table.setRowCount(len(playlist_movies))
+        for row, movie in enumerate(playlist_movies):
+            movies_table.setItem(row, 0, QTableWidgetItem(movie[0]))  # Title
+            movies_table.setItem(row, 1, QTableWidgetItem(str(movie[1])))  # Release Date
+            movies_table.setItem(row, 2, QTableWidgetItem(str(movie[2])))  # Rating
+
+            # Ajouter le bouton "Remove"
+            remove_button = QPushButton("Remove")
+            remove_button.clicked.connect(lambda _, mid=movie[3]: self.remove_movie_from_playlist(playlist_id, mid, movies_table))
+            movies_table.setCellWidget(row, 3, remove_button)
+
+        # Ajuster la taille des colonnes
+        movies_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+
+    def create_playlist_ui(self):
+        # Boîte de dialogue pour demander le nom de la playlist
+        playlist_name, ok = QInputDialog.getText(self, "Create Playlist", "Enter playlist name:")
+        if ok and playlist_name.strip():  # Vérifier si un nom a été saisi
+           # Appeler le backend pour créer la playlist
+            playlist_id = self.playlist_manager.create_playlist(self.get_user_id(self.username), playlist_name.strip())
+            if playlist_id:
+                QMessageBox.information(self, "Success", f"Playlist '{playlist_name}' created successfully!")
+                self.load_playlists()  # Recharger la liste des playlists
+            else:
+                QMessageBox.warning(self, "Error", "Failed to create playlist.")
+        else:
+            QMessageBox.warning(self, "Invalid Input", "Playlist name cannot be empty.")
+
+    def add_movie_to_playlist_ui(self, movie_id):
+        playlists = self.playlist_manager.get_user_playlists(self.get_user_id(self.username))
+        playlist_names = [playlist[1] for playlist in playlists]
+
+        playlist_name, ok = QInputDialog.getItem(self, "Add to Playlist", "Select playlist:", playlist_names, editable=False)
+        if ok and playlist_name:
+            playlist_id = next(p[0] for p in playlists if p[1] == playlist_name)
+            self.playlist_manager.add_movie_to_playlist(playlist_id, movie_id)
+            QMessageBox.information(self, "Success", "Movie added to playlist!")
+
+    def remove_movie_from_playlist(self, playlist_id, movie_id, movies_table):
+        try:
+            # Supprimer le film de la playlist via PlaylistManager
+            self.playlist_manager.remove_movie_from_playlist(playlist_id, movie_id)
+            QMessageBox.information(self, "Success", "Movie removed from playlist successfully!")
+
+            # Rafraîchir la vue de la playlist
+            self.view_playlist(playlist_id, movies_table)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to remove movie: {e}")
+
+    def delete_playlist(self, playlist_id):
+        reply = QMessageBox.question(
+            self, "Confirm Deletion",
+            "Are you sure you want to delete this playlist? This action cannot be undone.",
+            QMessageBox.Yes | QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            try:
+                # Supprimer la playlist via PlaylistManager
+                self.playlist_manager.delete_playlist(playlist_id)
+                QMessageBox.information(self, "Success", "Playlist deleted successfully!")
+
+                # Recharger la liste des playlists
+                self.load_playlists()
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to delete playlist: {e}")
+
 #----------------------------------------------------------
 
 def get_movie_date(movie_id):
@@ -570,7 +810,6 @@ def get_movie_name(movie_id):
     except Exception as e:
         print(f"Error: {e}")
         return "Movie Page"
-
 
 class MoviePage(QMainWindow):
     def __init__(self, movie_id, user_id):
@@ -607,7 +846,12 @@ class MoviePage(QMainWindow):
         poster_label.setPixmap(poster_pixmap)
         poster_label.setAlignment(Qt.AlignCenter)
         left_layout.addWidget(poster_label)
-
+        
+        # Bouton pour ajouter le film à une playlist
+        add_to_playlist_button = QPushButton("Add to Playlist")
+        add_to_playlist_button.clicked.connect(self.add_to_playlist_ui)
+        left_layout.addWidget(add_to_playlist_button)  
+        
         # Partie droite : Sections
         right_layout.addWidget(self.create_ratings_section())
         right_layout.addWidget(self.create_like_dislike_section(user_id, movie_id))
@@ -983,8 +1227,122 @@ class MoviePage(QMainWindow):
 
         crew_group.setLayout(crew_layout)
         return crew_group
+    
+    def add_to_playlist_ui(self):
+        # Obtenez les playlists de l'utilisateur via PlaylistManager
+        playlist_manager = PlaylistManager(DB_CONFIG)
+        playlists = playlist_manager.get_user_playlists(self.user_id)
+        playlist_names = [playlist[1] for playlist in playlists]  # Liste des noms des playlists
 
+        if not playlist_names:
+            QMessageBox.warning(self, "No Playlists", "You don't have any playlists. Please create one first.")
+            return
+
+        # Boîte de dialogue pour choisir une playlist
+        playlist_name, ok = QInputDialog.getItem(self, "Add to Playlist", "Select playlist:", playlist_names, editable=False)
+        if ok and playlist_name:
+            # Trouver l'ID de la playlist sélectionnée
+            playlist_id = next(p[0] for p in playlists if p[1] == playlist_name)
+            playlist_manager.add_movie_to_playlist(playlist_id, self.movie_id)
+            QMessageBox.information(self, "Success", f"Movie added to playlist '{playlist_name}'!")
+        else:
+            QMessageBox.warning(self, "Action Cancelled", "No playlist selected.")
+
+
+class PlaylistManager:
+    def __init__(self, db_config):
+        self.db_config = db_config
         
+    def create_playlist(self, user_id, playlist_name):
+        try:
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+            query = "INSERT INTO playlists (user_id, name) VALUES (%s, %s) RETURNING playlist_id;"
+            cursor.execute(query, (user_id, playlist_name))
+            playlist_id = cursor.fetchone()[0]
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return playlist_id
+        except Exception as e:
+            print(f"Error creating playlist: {e}")
+            return None
+
+    def add_movie_to_playlist(self, playlist_id, movie_id):
+        try:
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+            query = "INSERT INTO playlist_movies (playlist_id, movie_id) VALUES (%s, %s);"
+            cursor.execute(query, (playlist_id, movie_id))
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error adding movie to playlist: {e}")
+
+
+    def remove_movie_from_playlist(self, playlist_id, movie_id):
+        try:
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+            query = "DELETE FROM playlist_movies WHERE playlist_id = %s AND movie_id = %s;"
+            cursor.execute(query, (playlist_id, movie_id))
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error removing movie from playlist: {e}")
+
+    def get_user_playlists(self, user_id):
+        try:
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+            query = "SELECT playlist_id, name FROM playlists WHERE user_id = %s;"
+            cursor.execute(query, (user_id,))
+            playlists = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return playlists
+        except Exception as e:
+            print(f"Error fetching playlists: {e}")
+            return []
+
+    def get_playlist_movies(self, playlist_id):
+        try:
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+            query = """
+            SELECT M.title, M.release_date, M.vote_average, M.movie_id
+            FROM playlist_movies AS PM
+            JOIN movies AS M ON PM.movie_id = M.movie_id
+         WHERE PM.playlist_id = %s;
+            """
+            cursor.execute(query, (playlist_id,))
+            movies = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return movies
+        except Exception as e:
+            print(f"Error fetching playlist movies: {e}")
+            return []
+        
+    def delete_playlist(self, playlist_id):
+        try:
+            conn = psycopg2.connect(**self.db_config)
+            cursor = conn.cursor()
+
+            # Supprimer la playlist et ses films associés
+            query = "DELETE FROM playlists WHERE playlist_id = %s;"
+            cursor.execute(query, (playlist_id,))
+            conn.commit()
+
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error deleting playlist: {e}")
+            raise
+
+
         
 if __name__ == "__main__":
     app = QApplication(sys.argv)

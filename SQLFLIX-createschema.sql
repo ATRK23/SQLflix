@@ -128,3 +128,17 @@ CREATE TABLE user_movie_interactions (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (movie_id) REFERENCES movies(movie_id) ON DELETE CASCADE
 );
+
+CREATE TABLE playlists (
+    playlist_id SERIAL PRIMARY KEY,  -- Unique playlist id
+    user_id INT REFERENCES users(user_id), -- refers to user
+    name TEXT NOT NULL, -- name of the playlist
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- time created at 
+);
+
+CREATE TABLE playlist_movies (
+    playlist_movie_id SERIAL PRIMARY KEY,  --unique id
+    playlist_id INT REFERENCES playlists(playlist_id) ON DELETE CASCADE, -- refers to the playlist
+    movie_id INT REFERENCES movies(movie_id) ON DELETE CASCADE, -- refers to the movies in the playlist
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- added date
+);
