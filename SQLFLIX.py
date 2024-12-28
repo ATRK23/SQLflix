@@ -280,16 +280,23 @@ class HomePage(QMainWindow):
         self.genre_filter = QComboBox(self)
         self.genre_filter.addItem("All Genres")  # Option par défaut
         self.load_genres()  # Charger les genres disponibles
-        self.genre_filter.currentIndexChanged.connect(self.filter_movies_by_genre)
+        self.genre_filter.currentIndexChanged.connect(self.filter_movies)
         search_layout.addWidget(self.genre_filter)
 
-        # Barre de recherche
+        # Champ pour rechercher par titre
         self.search_input = QLineEdit(self)
-        self.search_input.setPlaceholderText("Search for a movie...")
+        self.search_input.setPlaceholderText("Search by title...")
         self.search_input.textChanged.connect(self.filter_movies)
-
         search_layout.addWidget(self.search_input)
+
+        # Champ pour rechercher par mot-clé
+        self.keyword_input = QLineEdit(self)
+        self.keyword_input.setPlaceholderText("Search by keyword...")
+        self.keyword_input.textChanged.connect(self.filter_movies)
+        search_layout.addWidget(self.keyword_input)
+
         layout.addLayout(search_layout)
+
 
     def load_genres(self):
         """Charge les genres disponibles à partir de la base de données et les ajoute au menu déroulant."""
@@ -305,6 +312,7 @@ class HomePage(QMainWindow):
             conn.close()
         except Exception as e:
             print(f"Error loading genres: {e}")
+
 
     def filter_movies_by_genre(self):
         """Filtre les films en fonction du genre sélectionné."""
@@ -344,9 +352,14 @@ class HomePage(QMainWindow):
 
 
     def filter_movies(self):
-        search_text = self.search_input.text().lower()
-        filtered_movies = self.get_filtered_movies(search_text)
+        """Filtre les films en fonction du titre, des mots-clés, et du genre."""
+        selected_genre = self.genre_filter.currentText()
+        search_text = self.search_input.text().strip().lower()
+        keyword = self.keyword_input.text().strip().lower()
+
+        filtered_movies = self.get_filtered_movies(selected_genre, search_text, keyword)
         self.update_movie_table(filtered_movies)
+
 
     def create_all_movies_section(self, layout):
         all_movies_group = QGroupBox("Tous les Films")
@@ -404,31 +417,42 @@ class HomePage(QMainWindow):
         layout.addWidget(self.recommendations_group) """
 
     def load_all_movies(self, table):
+        """Charge tous les films avec leurs genres combinés dans une seule colonne."""
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            query = """SELECT M.title, 
-                        STRING_AGG(G.name, ', ' ORDER BY G.name) AS genres, 
-                        M.release_date, 
-                        M.vote_average
-                        FROM movies AS M
-                        INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
-                        INNER JOIN genres AS G ON MG.genre_id = G.genre_id
-                        GROUP BY M.title, M.release_date, M.vote_average;"""
+            query = """
+                SELECT 
+                    M.title,
+                    STRING_AGG(DISTINCT G.name, ', ') AS genres, 
+                    M.release_date, 
+                    M.vote_average
+                FROM 
+                    movies AS M
+                INNER JOIN 
+                    movie_genres AS MG ON M.movie_id = MG.movie_id
+                INNER JOIN 
+                    genres AS G ON MG.genre_id = G.genre_id
+                GROUP BY 
+                    M.movie_id, M.title, M.release_date, M.vote_average
+                ORDER BY 
+                    M.title;
+            """
             cursor.execute(query)
             movies = cursor.fetchall()
 
             table.setRowCount(len(movies))
             for row, movie in enumerate(movies):
-                table.setItem(row, 0, QTableWidgetItem(movie[0]))
-                table.setItem(row, 1, QTableWidgetItem(movie[1]))
-                table.setItem(row, 2, QTableWidgetItem(str(movie[2])))
-                table.setItem(row, 3, QTableWidgetItem(str(movie[3])))
+                table.setItem(row, 0, QTableWidgetItem(movie[0]))  # Titre
+                table.setItem(row, 1, QTableWidgetItem(movie[1]))  # Genres
+                table.setItem(row, 2, QTableWidgetItem(str(movie[2])))  # Date de sortie
+                table.setItem(row, 3, QTableWidgetItem(str(movie[3])))  # Moyenne des votes
 
             cursor.close()
             conn.close()
         except Exception as e:
             print(f"Error loading all movies: {e}")
+
 
     def load_top_movies(self, table):
         try:
@@ -490,32 +514,55 @@ class HomePage(QMainWindow):
         except Exception as e:
             print(f"Error loading recommendations: {e}")
 
-    def get_filtered_movies(self, search_text):
+    def get_filtered_movies(self, selected_genre, search_text, keyword):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
 
-            query = """SELECT M.title, string_agg(G.name, ', ') AS genres, M.release_date, M.vote_average
-                    FROM movies AS M
-                    INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
-                    INNER JOIN genres AS G ON MG.genre_id = G.genre_id
-                    WHERE M.title ILIKE %s
-                    GROUP BY M.movie_id, M.title, M.release_date, M.vote_average;"""
-            cursor.execute(query, ('%' + search_text + '%',))
+            query = """
+                SELECT 
+                    M.title,
+                    STRING_AGG(DISTINCT G.name, ', ') AS genres, 
+                    M.release_date, 
+                    M.vote_average
+                FROM 
+                    movies AS M
+                LEFT JOIN 
+                    movie_genres AS MG ON M.movie_id = MG.movie_id
+                LEFT JOIN 
+                    genres AS G ON MG.genre_id = G.genre_id
+                LEFT JOIN 
+                    movie_keywords AS MK ON M.movie_id = MK.movie_id
+                LEFT JOIN 
+                    keywords AS K ON MK.keyword_id = K.keyword_id
+                WHERE 
+                    (%s = 'All Genres' OR G.name = %s) AND
+                    (%s = '' OR M.title ILIKE %s) AND
+                    (%s = '' OR K.name ILIKE %s)
+                GROUP BY 
+                    M.movie_id, M.title, M.release_date, M.vote_average
+                ORDER BY 
+                    M.title;
+            """
+
+            cursor.execute(query, (
+                selected_genre, selected_genre,  # Filtrage par genre
+                search_text, f"%{search_text}%",  # Filtrage par titre
+                keyword, f"%{keyword}%"  # Filtrage par mot-clé
+            ))
             movies = cursor.fetchall()
-
-            return [{"title": movie[0], "genre": movie[1], "release_date": movie[2], "vote_average": movie[3]} for movie in movies]
-
-        except Exception as e:
-            print(f"Error: {e}")
-            return []
-        finally:
             cursor.close()
             conn.close()
 
+            return [{"title": movie[0], "genre": movie[1], "release_date": movie[2], "vote_average": movie[3]} for movie in movies]
+        except Exception as e:
+            print(f"Error fetching filtered movies: {e}")
+            return []
+
+
+
     def update_movie_table(self, movies):
         self.all_movies_table.setRowCount(len(movies))
-
         for row, movie in enumerate(movies):
             self.all_movies_table.setItem(row, 0, QTableWidgetItem(movie["title"]))
             self.all_movies_table.setItem(row, 1, QTableWidgetItem(movie["genre"]))
