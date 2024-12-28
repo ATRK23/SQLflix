@@ -85,6 +85,9 @@ class LoginWindow(QMainWindow):
         self.show_password_checkbox = QCheckBox("Show the password")
         self.show_password_checkbox.stateChanged.connect(self.toggle_password_visibility)
         self.layout.addWidget(self.show_password_checkbox)
+        
+        self.remember_me_checkbox = QCheckBox("Remember me")
+        self.layout.addWidget(self.remember_me_checkbox)
 
         self.login_button = QPushButton("Sign in")
         self.signup_button = QPushButton("Sign up")
