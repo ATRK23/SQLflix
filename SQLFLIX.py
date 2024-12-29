@@ -53,7 +53,11 @@ class LoginWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("SQLFLIX - Sign in")
-        self.setGeometry(300, 300, 400, 500)
+        #self.setGeometry(300, 300, 400, 500)
+        screen = QApplication.primaryScreen()
+        size = screen.availableGeometry()
+        self.move(size.width() // 2 - self.width() // 2, size.height() // 2 - self.height() // 2)
+        
         self.setWindowIcon(QIcon("icone.png"))
 
         self.central_widget = QWidget()
@@ -63,6 +67,7 @@ class LoginWindow(QMainWindow):
 
         self.image_label = QLabel(self)
         self.pixmap = QPixmap("background.png")
+        self.pixmap = self.pixmap.scaled(self.centralWidget().size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.image_label.setPixmap(self.pixmap)
         self.image_label.setScaledContents(True)
         self.layout.addWidget(self.image_label)
@@ -236,7 +241,11 @@ class HomePage(QMainWindow):
         self.username = username
         self.playlist_manager = PlaylistManager(DB_CONFIG)  
         self.setWindowTitle("SQLFLIX - Homepage")
-        self.setGeometry(100, 100, 800, 600)
+        #self.setGeometry(100, 100, 800, 600)
+        screen = QApplication.primaryScreen()
+        size = screen.availableGeometry()
+        self.resize(int(size.width() * 0.8), int(size.height() * 0.8))
+        self.move(size.width() // 2 - self.width() // 2, size.height() // 2 - self.height() // 2)
         
         main_layout = QVBoxLayout()
 
