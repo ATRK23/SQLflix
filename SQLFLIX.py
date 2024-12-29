@@ -7,8 +7,12 @@ from PyQt5.QtWidgets import (
     QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout, QHeaderView, QInputDialog, QComboBox
 )
 from PyQt5.QtGui import QPixmap, QFont, QIcon
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 import requests
+
+#RememberMe
+import json
+import os
 
 # Configuration PostgreSQL 
 DB_CONFIG = {
@@ -51,7 +55,7 @@ def get_movie_poster_api(movie_name):
 class LoginWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
+        
         self.setWindowTitle("SQLFLIX - Sign in")
         self.setGeometry(300, 300, 400, 500)
         self.setWindowIcon(QIcon("icone.png"))
@@ -108,7 +112,10 @@ class LoginWindow(QMainWindow):
         self.signup_button.clicked.connect(self.open_signup_window)
 
         self.central_widget.setLayout(self.layout)
-
+        
+        #Essayer de charger les id / mdp sauvegardés
+        self.load_saved_credentials()
+        
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if not self.pixmap.isNull():
@@ -120,19 +127,44 @@ class LoginWindow(QMainWindow):
     def authenticate(self):
         username = self.username_input.text()
         password = self.password_input.text()
+        # Hash du mot de passe pour la vérification
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
 
-        if self.check_credentials(username, password):
-            QMessageBox.information(self, "Success", "Successful Connection !")
-            self.close()
+        if self.check_credentials(username, hashed_password, True):
+            QMessageBox.information(self, "Success", "Successful Connection!")
+
+            # Sauvegarde des informations si "Remember me" est coché
+            if self.remember_me_checkbox.isChecked():
+                self.save_credentials(username, hashed_password)  # On sauvegarde le hash
+            else:
+                self.clear_saved_credentials()
+
             self.open_home_page()
         else:
             QMessageBox.warning(self, "Error", "Invalid username or password.")
+        
+    #Supprimer le fichier .json si besoin    
+    def clear_saved_credentials(self):
+        if os.path.exists("login_config.json"):
+            try:
+                os.remove("login_config.json")
+            except Exception as e:
+                print(f"Error clearing saved credentials: {e}")       
+        
+    #Sauvegarder les id / mdp si l'utilisateur a coché la case "Remember me" dans un fichiers .json    
+    def save_credentials(self, username, hashed_password):
+        try:
+            data = {"username": username, "password": hashed_password}  # Utiliser directement le hash passé
+            with open("login_config.json", "w") as file:
+                json.dump(data, file)
+        except Exception as e:
+            print(f"Error saving credentials: {e}")
     
     def open_home_page(self):
         username = self.username_input.text()
         self.home_page = HomePage(username)
         self.home_page.show()
-        self.close()
+        QTimer.singleShot(0, self.close)  # Ferme la fenêtre après l'ouverture de la page d'accueil
     
     def toggle_password_visibility(self):
         if self.show_password_checkbox.isChecked():
@@ -140,17 +172,34 @@ class LoginWindow(QMainWindow):
         else:
             self.password_input.setEchoMode(QLineEdit.Password)
 
-    def check_credentials(self, username, password):
+    def check_credentials(self, username, password, hashed=False):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            hashed_password = hashlib.sha256(password.encode()).hexdigest()
-            query = "SELECT * FROM users WHERE username = %s AND password_hash = %s"
-            cursor.execute(query, (username, hashed_password))
-            user = cursor.fetchone()
-            cursor.close()
-            conn.close()
-            return user is not None
+
+            if not hashed:
+                # Si non hashé, hash du mot de passe
+                password = hashlib.sha256(password.encode()).hexdigest()
+
+            query = "SELECT password_hash FROM users WHERE username = %s"
+            cursor.execute(query, (username,))
+            result = cursor.fetchone()
+
+            if result:
+                stored_password_hash = result[0]
+
+                if stored_password_hash == password:
+                    cursor.close()
+                    conn.close()
+                    return True
+                else:
+                    cursor.close()
+                    conn.close()
+                    return False
+            else:
+                cursor.close()
+                conn.close()
+                return False
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Problem with the database : {e}")
             return False
@@ -158,6 +207,24 @@ class LoginWindow(QMainWindow):
     def open_signup_window(self):
         signup_window = SignupWindow()
         signup_window.exec_()
+        
+    #Charger le mdp sauvegardé si l'utilisateur a coché la case "Remember me"
+    def load_saved_credentials(self):
+        try:
+            if os.path.exists("login_config.json"):
+                with open("login_config.json", "r") as file:
+                    data = json.load(file)
+                    username = data.get("username")
+                    hashed_password = data.get("password")  # On récupère le hash directement
+
+                    if username and hashed_password:
+                        self.username_input.setText(username)
+
+                        # Tentative d'authentification directe avec le hash
+                        if self.check_credentials(username, hashed_password, hashed=True):
+                            self.open_home_page()
+        except Exception as e:
+            print(f"Error loading saved credentials: {e}")
 
 class SignupWindow(QDialog):
     def __init__(self):
@@ -562,8 +629,6 @@ class HomePage(QMainWindow):
             print(f"Error fetching filtered movies: {e}")
             return []
 
-
-
     def update_movie_table(self, movies):
         self.all_movies_table.setRowCount(len(movies))
         for row, movie in enumerate(movies):
@@ -572,7 +637,17 @@ class HomePage(QMainWindow):
             self.all_movies_table.setItem(row, 2, QTableWidgetItem(str(movie["release_date"])))
             self.all_movies_table.setItem(row, 3, QTableWidgetItem(str(movie["vote_average"])))
 
+    #Supprimer le fichier .json si besoin
+    #Ici car on a besoin de l'instance de Homepage pour le faire        
+    def clear_saved_credentials(self):
+        if os.path.exists("login_config.json"):
+            try:
+                os.remove("login_config.json")
+            except Exception as e:
+                print(f"Error clearing saved credentials: {e}")   
+
     def logout(self):
+        self.clear_saved_credentials()
         self.close()
         self.open_login_window()
 
