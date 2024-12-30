@@ -15,6 +15,8 @@ CREATE TABLE movies (
     vote_average FLOAT,              -- Average vote score for the movie
     vote_count INT                   -- Total number of votes received
 
+
+
 );
 
 CREATE TABLE movie_cast (
@@ -115,4 +117,12 @@ CREATE TABLE playlist_movies (
     playlist_id INT REFERENCES playlists(playlist_id) ON DELETE CASCADE, -- refers to the playlist
     movie_id INT REFERENCES movies(movie_id) ON DELETE CASCADE, -- refers to the movies in the playlist
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- added date
+);
+
+CREATE TABLE comments (
+    comment_id SERIAL PRIMARY KEY,
+    movie_id INT REFERENCES movies(movie_id) ON DELETE CASCADE,
+    user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
+    comment_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

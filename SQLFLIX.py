@@ -4,7 +4,7 @@ import hashlib
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QLineEdit, QPushButton,
     QLabel, QMessageBox, QWidget, QDialog, QSpacerItem, QSizePolicy, QHBoxLayout, QCheckBox,
-    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout, QHeaderView, QInputDialog, QComboBox
+    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout, QHeaderView, QInputDialog, QComboBox, QTextEdit, QListWidget, QListWidgetItem
 )
 from PyQt5.QtGui import QPixmap, QFont, QIcon
 from PyQt5.QtCore import Qt, QTimer
@@ -55,8 +55,12 @@ class LoginWindow(QMainWindow):
         super().__init__()
         
         self.setWindowTitle("SQLFLIX - Sign in")
-        self.setGeometry(300, 300, 400, 500) #Taille initiale de la fenêtre
-        self.setWindowIcon(QIcon("icone.png")) #Icone de la fenêtre ()
+        screen = QApplication.primaryScreen()
+        size = screen.availableGeometry()
+        self.resize(int(size.width() * 0.8), int(size.height() * 0.8))
+        self.move(size.width() // 2 - self.width() // 2, size.height() // 2 - self.height() // 2)
+
+        self.setWindowIcon(QIcon("icone.png"))
 
         self.central_widget = QWidget() #On crée un widget central
         self.setCentralWidget(self.central_widget)
@@ -64,7 +68,8 @@ class LoginWindow(QMainWindow):
         self.layout = QVBoxLayout() #Layout vertical pour les widgets
 
         self.image_label = QLabel(self)
-        self.pixmap = QPixmap("background.png") #Image de fond
+        self.pixmap = QPixmap("background.png")
+        self.pixmap = self.pixmap.scaled(self.centralWidget().size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.image_label.setPixmap(self.pixmap)
         self.image_label.setScaledContents(True) #Redimensionner l'image pour s'adapter à la taille du label
         self.layout.addWidget(self.image_label)
@@ -129,7 +134,7 @@ class LoginWindow(QMainWindow):
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
 
         if self.check_credentials(username, hashed_password, True):
-            QMessageBox.information(self, "Success", "Successful Connection!")
+            #QMessageBox.information(self, "Success", "Successful Connection!")
 
             # Sauvegarde des informations si "Remember me" est coché
             if self.remember_me_checkbox.isChecked():
@@ -229,7 +234,10 @@ class SignupWindow(QDialog):
         super().__init__()
 
         self.setWindowTitle("SQLFLIX - Sign up")
-        self.setGeometry(400, 300, 350, 400)
+        screen = QApplication.primaryScreen()
+        size = screen.availableGeometry()
+        self.move(size.width() // 2 - self.width() // 2, size.height() // 2 - self.height() // 2)
+
 
         self.layout = QVBoxLayout()
 
@@ -283,8 +291,13 @@ class SignupWindow(QDialog):
 
             hashed_password = hashlib.sha256(password.encode()).hexdigest() #Hash du mot de passe
 
-            query = "INSERT INTO users (username, password_hash) VALUES (%s, %s)" #On stocke le hash et non le mdp clair car trop peu sécurisé
+            query = "INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING user_id;"
             cursor.execute(query, (username, hashed_password))
+            user_id = cursor.fetchone()[0]  # Récupérer l'ID de l'utilisateur nouvellement créé
+
+            # Créer une playlist par défaut pour les films aimés
+            query_playlist = "INSERT INTO playlists (user_id, name) VALUES (%s, %s);"
+            cursor.execute(query_playlist, (user_id, "Liked Movies"))
             conn.commit()
 
             cursor.close()
@@ -722,7 +735,10 @@ class HomePage(QMainWindow):
 
             # Bouton "Delete"
             delete_button = QPushButton("Delete")
-            delete_button.clicked.connect(lambda _, pid=playlist[0]: self.delete_playlist(pid))
+            if playlist[1] == "Liked Movies":
+                delete_button.setEnabled(False)  # Désactiver le bouton pour "Liked Movies"
+            else:
+                delete_button.clicked.connect(lambda _, pid=playlist[0]: self.delete_playlist(pid))
             self.playlists_table.setCellWidget(row, 2, delete_button)
 
     def view_playlist(self, playlist_id, movies_table=None):
@@ -894,6 +910,7 @@ class MoviePage(QMainWindow):
         right_layout.addWidget(self.create_like_dislike_section(user_id, movie_id))
         right_layout.addWidget(self.create_genres_and_keywords_section(movie_id))
         right_layout.addWidget(self.create_languages_section(movie_id))
+        right_layout.addWidget(self.create_comments_section())
 
         # Disposition Cast et Crew côte à côte avec scrollbar
         cast_crew_layout = QHBoxLayout()
@@ -998,31 +1015,73 @@ class MoviePage(QMainWindow):
             cursor = conn.cursor()
 
             # Vérifiez si une interaction existe déjà
-            query_check = """SELECT liked FROM user_movie_interactions
-                            WHERE user_id = %s AND movie_id = %s"""
+            query_check = """
+                SELECT liked 
+                FROM user_movie_interactions
+                WHERE user_id = %s AND movie_id = %s;
+            """
             cursor.execute(query_check, (user_id, movie_id))
             result = cursor.fetchone()
 
             if result is None:
                 # Insérer une nouvelle interaction
-                query_insert = """INSERT INTO user_movie_interactions (user_id, movie_id, liked)
-                                VALUES (%s, %s, %s)"""
+                query_insert = """
+                    INSERT INTO user_movie_interactions (user_id, movie_id, liked)
+                VALUES (%s, %s, %s);
+                """
                 cursor.execute(query_insert, (user_id, movie_id, liked))
             else:
-                # Mettre à jour l'interaction existante
-                query_update = """UPDATE user_movie_interactions
-                                SET liked = %s
-                                WHERE user_id = %s AND movie_id = %s"""
+            # Mettre à jour l'interaction existante
+                query_update = """
+                    UPDATE user_movie_interactions
+                    SET liked = %s
+                    WHERE user_id = %s AND movie_id = %s;
+                """
                 cursor.execute(query_update, (liked, user_id, movie_id))
+    
+        # Ajouter ou supprimer le film de la playlist "Liked Movies"
+            if liked:
+                # Vérifier si le film est déjà dans la playlist
+                query_check_playlist = """
+                    SELECT 1 
+                    FROM playlist_movies
+                    WHERE playlist_id = (
+                        SELECT playlist_id 
+                        FROM playlists 
+                        WHERE user_id = %s AND name = 'Liked Movies'
+                    ) AND movie_id = %s;
+                """
+                cursor.execute(query_check_playlist, (user_id, movie_id))
+                if not cursor.fetchone():
+                    # Ajouter le film à la playlist
+                    query_add_to_playlist = """
+                        INSERT INTO playlist_movies (playlist_id, movie_id)
+                        SELECT playlist_id, %s
+                        FROM playlists
+                        WHERE user_id = %s AND name = 'Liked Movies';
+                    """
+                    cursor.execute(query_add_to_playlist, (movie_id, user_id))
+            else:
+                # Supprimer le film de la playlist "Liked Movies"
+                query_remove_from_playlist = """
+                    DELETE FROM playlist_movies
+                    WHERE playlist_id = (
+                        SELECT playlist_id 
+                        FROM playlists 
+                        WHERE user_id = %s AND name = 'Liked Movies'
+                    ) AND movie_id = %s;
+                """
+                cursor.execute(query_remove_from_playlist, (user_id, movie_id))
 
             conn.commit()
             cursor.close()
             conn.close()
 
-            # Mettre à jour l'interface (réinitialise les boutons)
+            # Mettre à jour les boutons "Like/Dislike"
             self.refresh_like_dislike_buttons(user_id, movie_id)
         except Exception as e:
             print(f"Erreur lors de la mise à jour like/dislike : {e}")
+
 
     def refresh_like_dislike_buttons(self, user_id, movie_id):
         """
@@ -1087,8 +1146,13 @@ class MoviePage(QMainWindow):
             query = "SELECT rating FROM user_movie_interactions WHERE user_id = %s AND movie_id = %s"
             cursor.execute(query, (self.user_id, self.movie_id))
             user_rating = cursor.fetchone()
+
+            # Vérifier si une note existe
             if user_rating is not None:
-                slider.setValue(user_rating[0])
+                slider.setValue(user_rating[0])  # Utiliser la note récupérée
+            else:
+                slider.setValue(0)  # Valeur par défaut si aucune note n'existe
+
             cursor.close()
             conn.close()
         except Exception as e:
@@ -1286,6 +1350,127 @@ class MoviePage(QMainWindow):
         else:
             QMessageBox.warning(self, "Action Cancelled", "No playlist selected.")
 
+    
+    def create_comments_section(self):
+        comments_group = QGroupBox("Comments")
+        comments_layout = QVBoxLayout()
+
+        # Liste des commentaires
+        self.comments_list = QListWidget()
+        self.load_comments()
+        comments_layout.addWidget(self.comments_list)
+
+        # Zone de saisie pour ajouter un commentaire
+        self.comment_input = QTextEdit()
+        self.comment_input.setPlaceholderText("Write your comment here...")
+        comments_layout.addWidget(self.comment_input)
+
+        # Bouton pour soumettre un commentaire
+        submit_button = QPushButton("Submit Comment")
+        submit_button.clicked.connect(self.submit_comment)
+        comments_layout.addWidget(submit_button)
+
+        comments_group.setLayout(comments_layout)
+        return comments_group
+
+    def load_comments(self):
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+            query = """
+                SELECT C.comment_id, U.username, C.comment_text, C.created_at, C.user_id
+                FROM comments AS C
+                INNER JOIN users AS U ON C.user_id = U.user_id
+                WHERE C.movie_id = %s
+                ORDER BY C.created_at DESC;
+            """
+            cursor.execute(query, (self.movie_id,))
+            comments = cursor.fetchall()
+            self.comments_list.clear()  # Effacez les anciens commentaires
+
+            for comment_id, username, comment_text, created_at, user_id in comments:
+                formatted_date = created_at.strftime("%Y-%m-%d %H:%M:%S")
+                # Créer un widget pour chaque commentaire
+                comment_widget = QWidget()
+                layout = QHBoxLayout()
+
+                # Texte du commentaire
+                comment_label = QLabel(f"{username} ({formatted_date}):\n{comment_text}")
+                comment_label.setWordWrap(True)
+                layout.addWidget(comment_label)
+
+                # Ajouter un bouton "Supprimer" si l'utilisateur est l'auteur
+                if user_id == self.user_id:
+                    delete_button = QPushButton("Delete")
+                    delete_button.clicked.connect(lambda _, cid=comment_id: self.delete_comment(cid))
+                    layout.addWidget(delete_button)
+    
+                comment_widget.setLayout(layout)
+                item = QListWidgetItem()
+                item.setSizeHint(comment_widget.sizeHint())
+                self.comments_list.addItem(item)
+                self.comments_list.setItemWidget(item, comment_widget)
+
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error loading comments: {e}")
+
+
+    def submit_comment(self):
+        comment_text = self.comment_input.toPlainText().strip()
+        if not comment_text:
+            QMessageBox.warning(self, "Error", "Comment cannot be empty!")
+            return
+
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+            query = """
+                INSERT INTO comments (movie_id, user_id, comment_text)
+                VALUES (%s, %s, %s);
+            """
+            cursor.execute(query, (self.movie_id, self.user_id, comment_text))
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            #QMessageBox.information(self, "Success", "Your comment has been added!")
+            self.comment_input.clear()  # Effacez la zone de saisie
+            self.load_comments()  # Rechargez les commentaires
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to submit comment: {e}")
+
+    def delete_comment(self, comment_id):
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+
+            # Vérifier si l'utilisateur connecté est l'auteur du commentaire
+            query_check = """
+                SELECT 1 FROM comments 
+                WHERE comment_id = %s AND user_id = %s;
+            """
+            cursor.execute(query_check, (comment_id, self.user_id))
+            result = cursor.fetchone()
+
+            if not result:
+                QMessageBox.warning(self, "Error", "You can only delete your own comments!")
+                return
+
+            # Supprimer le commentaire
+            query_delete = "DELETE FROM comments WHERE comment_id = %s;"
+            cursor.execute(query_delete, (comment_id,))
+            conn.commit()
+
+            cursor.close()
+            conn.close()
+
+            #QMessageBox.information(self, "Success", "Comment deleted successfully!")
+            self.load_comments()  # Recharger les commentaires
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to delete comment: {e}")
+
 
 class PlaylistManager:
     def __init__(self, db_config):
@@ -1380,8 +1565,6 @@ class PlaylistManager:
             print(f"Error deleting playlist: {e}")
             raise
 
-
-        
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     login_window = LoginWindow()
