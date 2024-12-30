@@ -15,6 +15,8 @@ CREATE TABLE movies (
     vote_average FLOAT,              -- Average vote score for the movie
     vote_count INT                   -- Total number of votes received
 
+
+
 );
 
 CREATE TABLE movie_cast (
@@ -56,32 +58,6 @@ CREATE TABLE movie_genres (
     PRIMARY KEY (movie_id, genre_id),
     FOREIGN KEY (movie_id) REFERENCES movies(movie_id) ON DELETE CASCADE,
     FOREIGN KEY (genre_id) REFERENCES genres(genre_id) ON DELETE CASCADE
-);
-
-CREATE TABLE production_companies (
-    company_id INT PRIMARY KEY,       -- Unique company id
-    name VARCHAR(255) NOT NULL        -- Company name
-);
-
-CREATE TABLE movie_production_companies (
-    movie_id INT,                     
-    company_id INT,                  
-    PRIMARY KEY (movie_id, company_id),
-    FOREIGN KEY (movie_id) REFERENCES movies(movie_id) ON DELETE CASCADE,
-    FOREIGN KEY (company_id) REFERENCES production_companies(company_id) ON DELETE CASCADE
-);
-
-CREATE TABLE production_countries (
-    country_code CHAR(2) PRIMARY KEY, -- Country ISO code
-    name VARCHAR(100) NOT NULL        -- Country name
-);
-
-CREATE TABLE movie_production_countries (
-    movie_id INT,                    
-    country_code CHAR(2),             
-    PRIMARY KEY (movie_id, country_code),
-    FOREIGN KEY (movie_id) REFERENCES movies(movie_id) ON DELETE CASCADE,
-    FOREIGN KEY (country_code) REFERENCES production_countries(country_code) ON DELETE CASCADE
 );
 
 CREATE TABLE spoken_languages (
@@ -141,4 +117,12 @@ CREATE TABLE playlist_movies (
     playlist_id INT REFERENCES playlists(playlist_id) ON DELETE CASCADE, -- refers to the playlist
     movie_id INT REFERENCES movies(movie_id) ON DELETE CASCADE, -- refers to the movies in the playlist
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- added date
+);
+
+CREATE TABLE comments (
+    comment_id SERIAL PRIMARY KEY,
+    movie_id INT REFERENCES movies(movie_id) ON DELETE CASCADE,
+    user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
+    comment_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
