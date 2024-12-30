@@ -453,6 +453,8 @@ class HomePage(QMainWindow):
         self.all_movies_table.setColumnCount(4)
         self.all_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating']) #Colonnes du tableau
         self.load_all_movies(self.all_movies_table) #on appelle la fonction pour charger tous les films
+
+        self.all_movies_table.setSortingEnabled(True)
         
         self.all_movies_table.resizeColumnsToContents() #Redimensionner les colonnes pour s'adapter au contenu et a la taille de la fenetre
         header = self.all_movies_table.horizontalHeader()
