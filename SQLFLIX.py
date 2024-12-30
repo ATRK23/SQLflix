@@ -1056,55 +1056,73 @@ class MoviePage(QMainWindow):
             cursor = conn.cursor()
 
             # Vérifiez si une interaction existe déjà
-            query_check = """SELECT liked FROM user_movie_interactions
-                            WHERE user_id = %s AND movie_id = %s"""
+            query_check = """
+                SELECT liked 
+                FROM user_movie_interactions
+                WHERE user_id = %s AND movie_id = %s;
+            """
             cursor.execute(query_check, (user_id, movie_id))
             result = cursor.fetchone()
 
             if result is None:
                 # Insérer une nouvelle interaction
-                query_insert = """INSERT INTO user_movie_interactions (user_id, movie_id, liked)
-                                VALUES (%s, %s, %s)"""
+                query_insert = """
+                    INSERT INTO user_movie_interactions (user_id, movie_id, liked)
+                VALUES (%s, %s, %s);
+                """
                 cursor.execute(query_insert, (user_id, movie_id, liked))
             else:
-                # Mettre à jour l'interaction existante
-                query_update = """UPDATE user_movie_interactions
-                                SET liked = %s
-                                WHERE user_id = %s AND movie_id = %s"""
-                cursor.execute(query_update, (liked, user_id, movie_id))
-
-            # Gérer la playlist par défaut
-            if liked:
-                # Ajouter le film à la playlist "Liked Movies"
-                query_add_to_playlist = """
-                    INSERT INTO playlist_movies (playlist_id, movie_id)
-                    SELECT P.playlist_id, %s
-                    FROM playlists AS P
-                    WHERE P.user_id = %s AND P.name = 'Liked Movies'
-                    ON CONFLICT DO NOTHING;
+            # Mettre à jour l'interaction existante
+                query_update = """
+                    UPDATE user_movie_interactions
+                    SET liked = %s
+                    WHERE user_id = %s AND movie_id = %s;
                 """
-                cursor.execute(query_add_to_playlist, (movie_id, user_id))
+                cursor.execute(query_update, (liked, user_id, movie_id))
+    
+        # Ajouter ou supprimer le film de la playlist "Liked Movies"
+            if liked:
+                # Vérifier si le film est déjà dans la playlist
+                query_check_playlist = """
+                    SELECT 1 
+                    FROM playlist_movies
+                    WHERE playlist_id = (
+                        SELECT playlist_id 
+                        FROM playlists 
+                        WHERE user_id = %s AND name = 'Liked Movies'
+                    ) AND movie_id = %s;
+                """
+                cursor.execute(query_check_playlist, (user_id, movie_id))
+                if not cursor.fetchone():
+                    # Ajouter le film à la playlist
+                    query_add_to_playlist = """
+                        INSERT INTO playlist_movies (playlist_id, movie_id)
+                        SELECT playlist_id, %s
+                        FROM playlists
+                        WHERE user_id = %s AND name = 'Liked Movies';
+                    """
+                    cursor.execute(query_add_to_playlist, (movie_id, user_id))
             else:
                 # Supprimer le film de la playlist "Liked Movies"
                 query_remove_from_playlist = """
                     DELETE FROM playlist_movies
                     WHERE playlist_id = (
-                        SELECT playlist_id
-                        FROM playlists
+                        SELECT playlist_id 
+                        FROM playlists 
                         WHERE user_id = %s AND name = 'Liked Movies'
                     ) AND movie_id = %s;
                 """
                 cursor.execute(query_remove_from_playlist, (user_id, movie_id))
 
-            
             conn.commit()
             cursor.close()
             conn.close()
 
-            # Mettre à jour l'interface (réinitialise les boutons)
+            # Mettre à jour les boutons "Like/Dislike"
             self.refresh_like_dislike_buttons(user_id, movie_id)
         except Exception as e:
             print(f"Erreur lors de la mise à jour like/dislike : {e}")
+
 
     def refresh_like_dislike_buttons(self, user_id, movie_id):
         """
@@ -1169,8 +1187,13 @@ class MoviePage(QMainWindow):
             query = "SELECT rating FROM user_movie_interactions WHERE user_id = %s AND movie_id = %s"
             cursor.execute(query, (self.user_id, self.movie_id))
             user_rating = cursor.fetchone()
+
+            # Vérifier si une note existe
             if user_rating is not None:
-                slider.setValue(user_rating[0])
+                slider.setValue(user_rating[0])  # Utiliser la note récupérée
+            else:
+                slider.setValue(0)  # Valeur par défaut si aucune note n'existe
+
             cursor.close()
             conn.close()
         except Exception as e:
