@@ -55,11 +55,11 @@ class LoginWindow(QMainWindow):
         super().__init__()
         
         self.setWindowTitle("SQLFLIX - Sign in")
+        #self.setGeometry(300, 300, 400, 500)
         screen = QApplication.primaryScreen()
         size = screen.availableGeometry()
-        self.resize(int(size.width() * 0.8), int(size.height() * 0.8))
         self.move(size.width() // 2 - self.width() // 2, size.height() // 2 - self.height() // 2)
-
+        
         self.setWindowIcon(QIcon("icone.png"))
 
         self.central_widget = QWidget() #On crée un widget central
@@ -317,7 +317,11 @@ class HomePage(QMainWindow):
         self.username = username
         self.playlist_manager = PlaylistManager(DB_CONFIG)  
         self.setWindowTitle("SQLFLIX - Homepage")
-        self.setGeometry(100, 100, 800, 600) #La homepage est plus grande que la loginpage
+        #self.setGeometry(100, 100, 800, 600)
+        screen = QApplication.primaryScreen()
+        size = screen.availableGeometry()
+        self.resize(int(size.width() * 0.8), int(size.height() * 0.8))
+        self.move(size.width() // 2 - self.width() // 2, size.height() // 2 - self.height() // 2)
         
         main_layout = QVBoxLayout() #Layout vertical pour les widgets
 
