@@ -303,7 +303,7 @@ class HomePage(QMainWindow):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            query = "SELECT name FROM genres;"
+            query = "SELECT name FROM genres ORDER BY name ASC;"
             cursor.execute(query)
             genres = cursor.fetchall()
             for genre in genres:
