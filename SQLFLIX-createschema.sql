@@ -58,32 +58,6 @@ CREATE TABLE movie_genres (
     FOREIGN KEY (genre_id) REFERENCES genres(genre_id) ON DELETE CASCADE
 );
 
-CREATE TABLE production_companies (
-    company_id INT PRIMARY KEY,       -- Unique company id
-    name VARCHAR(255) NOT NULL        -- Company name
-);
-
-CREATE TABLE movie_production_companies (
-    movie_id INT,                     
-    company_id INT,                  
-    PRIMARY KEY (movie_id, company_id),
-    FOREIGN KEY (movie_id) REFERENCES movies(movie_id) ON DELETE CASCADE,
-    FOREIGN KEY (company_id) REFERENCES production_companies(company_id) ON DELETE CASCADE
-);
-
-CREATE TABLE production_countries (
-    country_code CHAR(2) PRIMARY KEY, -- Country ISO code
-    name VARCHAR(100) NOT NULL        -- Country name
-);
-
-CREATE TABLE movie_production_countries (
-    movie_id INT,                    
-    country_code CHAR(2),             
-    PRIMARY KEY (movie_id, country_code),
-    FOREIGN KEY (movie_id) REFERENCES movies(movie_id) ON DELETE CASCADE,
-    FOREIGN KEY (country_code) REFERENCES production_countries(country_code) ON DELETE CASCADE
-);
-
 CREATE TABLE spoken_languages (
     language_code CHAR(2) PRIMARY KEY, -- Language ISO code
     name VARCHAR(100) NOT NULL         -- Language name
