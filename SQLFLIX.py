@@ -19,24 +19,22 @@ DB_CONFIG = {
     'dbname': 'sqlflix',
     'user': 'postgres',
     'password': 'database12@',
-    'host': 'localhost'
+    'host': 'localhost',
     #'port': '5432'
 }
 
 #API TMDB pour les poster
 tmdb_api_key = "e072012ac707cd3cd0d66699ebce5aff"
-
 BASE_URL = 'https://api.themoviedb.org/3'
 IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500'
-
-def get_movie_poster_api(movie_name):
+def get_movie_poster_api(movie_name): #On recherchera par nom de film
     search_url = f"{BASE_URL}/search/movie"
     params = {
         'api_key': tmdb_api_key,
         'query': movie_name
     }
     try:
-        response = requests.get(search_url, params=params)
+        response = requests.get(search_url, params=params) #Envoyer une requetes à l'API
         response.raise_for_status()
         data = response.json()
         
@@ -64,28 +62,28 @@ class LoginWindow(QMainWindow):
 
         self.setWindowIcon(QIcon("icone.png"))
 
-        self.central_widget = QWidget()
+        self.central_widget = QWidget() #On crée un widget central
         self.setCentralWidget(self.central_widget)
 
-        self.layout = QVBoxLayout()
+        self.layout = QVBoxLayout() #Layout vertical pour les widgets
 
         self.image_label = QLabel(self)
         self.pixmap = QPixmap("background.png")
         self.pixmap = self.pixmap.scaled(self.centralWidget().size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.image_label.setPixmap(self.pixmap)
-        self.image_label.setScaledContents(True)
+        self.image_label.setScaledContents(True) #Redimensionner l'image pour s'adapter à la taille du label
         self.layout.addWidget(self.image_label)
 
-        title_label = QLabel("Connection to SQLFLIX", self)
-        title_label.setFont(QFont("Arial", 16, QFont.Bold))
-        title_label.setAlignment(Qt.AlignCenter)
+        title_label = QLabel("Connection to SQLFLIX", self) #Titre de la fenêtre (en haut)
+        title_label.setFont(QFont("Arial", 16, QFont.Bold)) #Police
+        title_label.setAlignment(Qt.AlignCenter)#Centrer le texte
         self.layout.addWidget(title_label)
 
         self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Username")
+        self.username_input.setPlaceholderText("Username") #Placeholder
         self.username_input.setStyleSheet("padding: 10px; border-radius: 5px; border: 1px solid #ccc;")
         self.password_input = QLineEdit()
-        self.password_input.setPlaceholderText("Password")
+        self.password_input.setPlaceholderText("Password") #Placeholder
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setStyleSheet("padding: 10px; border-radius: 5px; border: 1px solid #ccc;")
         self.layout.addWidget(self.username_input)
@@ -95,7 +93,7 @@ class LoginWindow(QMainWindow):
         self.show_password_checkbox.stateChanged.connect(self.toggle_password_visibility)
         self.layout.addWidget(self.show_password_checkbox)
         
-        self.remember_me_checkbox = QCheckBox("Remember me")
+        self.remember_me_checkbox = QCheckBox("Remember me") #Bouton remember me
         self.layout.addWidget(self.remember_me_checkbox)
 
         self.login_button = QPushButton("Sign in")
@@ -118,10 +116,10 @@ class LoginWindow(QMainWindow):
 
         self.central_widget.setLayout(self.layout)
         
-        #Essayer de charger les id / mdp sauvegardés
+        #Essayer de charger les id / mdp sauvegardés (si l'utilisateur avait coché la case "Remember me" auparavant)
         self.load_saved_credentials()
         
-    def resizeEvent(self, event):
+    def resizeEvent(self, event): #Redimensionner l'image de fond si la taille de la fenêtre change
         super().resizeEvent(event)
         if not self.pixmap.isNull():
             scaled_pixmap = self.pixmap.scaled(
@@ -129,7 +127,7 @@ class LoginWindow(QMainWindow):
             )
             self.image_label.setPixmap(scaled_pixmap)
 
-    def authenticate(self):
+    def authenticate(self): #Fonction principale pour vérifier si les identifiants sont corrects
         username = self.username_input.text()
         password = self.password_input.text()
         # Hash du mot de passe pour la vérification
@@ -140,9 +138,9 @@ class LoginWindow(QMainWindow):
 
             # Sauvegarde des informations si "Remember me" est coché
             if self.remember_me_checkbox.isChecked():
-                self.save_credentials(username, hashed_password)  # On sauvegarde le hash
+                self.save_credentials(username, hashed_password)  # On sauvegarde le hash, pas le mot de passe en clair
             else:
-                self.clear_saved_credentials()
+                self.clear_saved_credentials() #Supprimer le fichier .json si l'utilisateur n'a pas coché la case
 
             self.open_home_page()
         else:
@@ -177,7 +175,7 @@ class LoginWindow(QMainWindow):
         else:
             self.password_input.setEchoMode(QLineEdit.Password)
 
-    def check_credentials(self, username, password, hashed=False):
+    def check_credentials(self, username, password, hashed=False): #Vérifier si les identifiants sont corrects, on précise si le mot de passe est déjà hashé ou non, 
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
@@ -186,18 +184,18 @@ class LoginWindow(QMainWindow):
                 # Si non hashé, hash du mot de passe
                 password = hashlib.sha256(password.encode()).hexdigest()
 
-            query = "SELECT password_hash FROM users WHERE username = %s"
+            query = "SELECT password_hash FROM users WHERE username = %s" #Verifier si le hash correspond
             cursor.execute(query, (username,))
             result = cursor.fetchone()
 
             if result:
                 stored_password_hash = result[0]
 
-                if stored_password_hash == password:
+                if stored_password_hash == password: #Si le hash correspond, on retourne True
                     cursor.close()
                     conn.close()
                     return True
-                else:
+                else: #Sinon, on retourne False
                     cursor.close()
                     conn.close()
                     return False
@@ -274,8 +272,8 @@ class SignupWindow(QDialog):
 
         self.setLayout(self.layout)
 
-    def register_user(self):
-        username = self.username_input.text().strip()
+    def register_user(self): #Fonction pour enregistrer un nouvel utilisateur
+        username = self.username_input.text().strip() #On enlève les espaces
         password = self.password_input.text()
         confirm_password = self.confirm_password_input.text()
 
@@ -291,7 +289,7 @@ class SignupWindow(QDialog):
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
 
-            hashed_password = hashlib.sha256(password.encode()).hexdigest()
+            hashed_password = hashlib.sha256(password.encode()).hexdigest() #Hash du mot de passe
 
             query = "INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING user_id;"
             cursor.execute(query, (username, hashed_password))
@@ -319,22 +317,21 @@ class HomePage(QMainWindow):
         self.username = username
         self.playlist_manager = PlaylistManager(DB_CONFIG)  
         self.setWindowTitle("SQLFLIX - Homepage")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 800, 600) #La homepage est plus grande que la loginpage
         
-        main_layout = QVBoxLayout()
+        main_layout = QVBoxLayout() #Layout vertical pour les widgets
 
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Horizontal) #Un splitter pour séparer les widgets en deux colonnes
 
-        left_widget = QWidget()
+        left_widget = QWidget() #Widget pour la colonne de gauche
         left_layout = QVBoxLayout()
         self.create_search_bar(left_layout)
         self.create_all_movies_section(left_layout)
         self.create_top_movies_section(left_layout)
         self.create_playlists_section(left_layout)
-        #self.create_recommendations_section(left_layout)
         left_widget.setLayout(left_layout)
         
-        right_widget = QWidget()
+        right_widget = QWidget() #Widget pour la colonne de droite
         right_layout = QVBoxLayout()
         self.tabs = QTabWidget()  # Les onglets pour afficher les films détaillés
         right_layout.addWidget(self.tabs)
@@ -386,7 +383,7 @@ class HomePage(QMainWindow):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            query = "SELECT name FROM genres;"
+            query = "SELECT name FROM genres ORDER BY name ASC;"
             cursor.execute(query)
             genres = cursor.fetchall()
             for genre in genres:
@@ -450,14 +447,14 @@ class HomePage(QMainWindow):
 
         self.all_movies_table = QTableWidget()
         self.all_movies_table.setColumnCount(4)
-        self.all_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating'])
-        self.load_all_movies(self.all_movies_table)
+        self.all_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating']) #Colonnes du tableau
+        self.load_all_movies(self.all_movies_table) #on appelle la fonction pour charger tous les films
         
-        self.all_movies_table.resizeColumnsToContents()
+        self.all_movies_table.resizeColumnsToContents() #Redimensionner les colonnes pour s'adapter au contenu et a la taille de la fenetre
         header = self.all_movies_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
         
-        self.all_movies_table.cellDoubleClicked.connect(self.on_movie_double_clicked)
+        self.all_movies_table.cellDoubleClicked.connect(self.on_movie_double_clicked) #on ouvre la page du film si on double clique dessus
 
         all_movies_layout.addWidget(self.all_movies_table)
         all_movies_group.setLayout(all_movies_layout)
@@ -470,7 +467,7 @@ class HomePage(QMainWindow):
         self.top_movies_table = QTableWidget()
         self.top_movies_table.setColumnCount(4)
         self.top_movies_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Year', 'Rating'])
-        self.load_top_movies(self.top_movies_table)
+        self.load_top_movies(self.top_movies_table) #On appelle la fonction pour charger les 10 meilleurs films
         
         self.top_movies_table.resizeColumnsToContents()
         header = self.top_movies_table.horizontalHeader()
@@ -483,21 +480,6 @@ class HomePage(QMainWindow):
         top_movies_layout.addWidget(self.top_movies_table)
         top_movies_group.setLayout(top_movies_layout)
         layout.addWidget(top_movies_group, stretch=0)
-
-    """ def create_recommendations_section(self, layout):
-        self.recommendations_group = QGroupBox("Recommandations")
-        self.recommendations_layout = QVBoxLayout()
-
-        self.recommendations_table = QTableWidget()
-        self.recommendations_table.setColumnCount(4)
-        self.recommendations_table.setHorizontalHeaderLabels(['Title', 'Genre', 'Release Date', 'Rating'])
-        self.load_recommendations(self.recommendations_table)
-        
-        self.recommendations_table.cellDoubleClicked.connect(self.on_movie_double_clicked)
-
-        self.recommendations_layout.addWidget(self.recommendations_table)
-        self.recommendations_group.setLayout(self.recommendations_layout)
-        layout.addWidget(self.recommendations_group) """
 
     def load_all_movies(self, table):
         """Charge tous les films avec leurs genres combinés dans une seule colonne."""
@@ -557,6 +539,7 @@ class HomePage(QMainWindow):
                             M.movie_id, M.title, M.release_date, M.vote_average
                         ORDER BY (M.vote_average * LOG(1 + M.vote_count)) DESC
                         LIMIT 10;"""
+                        #On prend les 10 films les mieux notés par rapport au nombre de votes et à la moyenne des votes (LOG)
             cursor.execute(query)
             movies = cursor.fetchall()
 
@@ -572,32 +555,7 @@ class HomePage(QMainWindow):
         except Exception as e:
             print(f"Error loading top movies: {e}")
 
-    def load_recommendations(self, table):
-        try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            query = """SELECT M.title, G.name as genre, M.release_date, M.vote_average
-                        FROM movies AS M
-                        INNER JOIN movie_genres AS MG ON M.movie_id = MG.movie_id
-                        INNER JOIN genres AS G ON MG.genre_id = G.genre_id
-                        ORDER BY M.vote_average DESC
-                        LIMIT 5;"""
-            cursor.execute(query)
-            movies = cursor.fetchall()
-
-            table.setRowCount(len(movies))
-            for row, movie in enumerate(movies):
-                table.setItem(row, 0, QTableWidgetItem(movie[0]))
-                table.setItem(row, 1, QTableWidgetItem(movie[1]))
-                table.setItem(row, 2, QTableWidgetItem(str(movie[2])))
-                table.setItem(row, 3, QTableWidgetItem(str(movie[3])))
-
-            cursor.close()
-            conn.close()
-        except Exception as e:
-            print(f"Error loading recommendations: {e}")
-
-    def get_filtered_movies(self, selected_genre, search_text, keyword):
+    def get_filtered_movies(self, selected_genre, search_text, keyword): #Fonction pour filtrer les films
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
@@ -642,7 +600,7 @@ class HomePage(QMainWindow):
             print(f"Error fetching filtered movies: {e}")
             return []
 
-    def update_movie_table(self, movies):
+    def update_movie_table(self, movies): #MEttre a jour le tableau a chaque nouveau caractère dans la barre de recherche
         self.all_movies_table.setRowCount(len(movies))
         for row, movie in enumerate(movies):
             self.all_movies_table.setItem(row, 0, QTableWidgetItem(movie["title"]))
@@ -668,7 +626,7 @@ class HomePage(QMainWindow):
         self.login_window = LoginWindow()
         self.login_window.show()
         
-    def open_movie_page(self, movie_id, user_id):
+    def open_movie_page(self, movie_id, user_id): #On envoie les info du film et l'user qui l'ouvre
         movie_name = get_movie_name(movie_id)
         movie_year = get_movie_year(movie_id)
 
@@ -678,13 +636,12 @@ class HomePage(QMainWindow):
                 self.tabs.setCurrentIndex(index)  # Sélectionner l'onglet existant
                 return
 
-        # Créer un nouvel onglet pour le film
+        # Créer un nouvel onglet pour le film sinon
         movie_page = MoviePage(movie_id, user_id)
         self.tabs.addTab(movie_page, f"{movie_name} ({movie_year})")
         self.tabs.setCurrentIndex(self.tabs.count() - 1)  # Sélectionner le dernier onglet
 
     def on_movie_double_clicked(self, row):
-        
         table = self.sender() #recupere ce qui l'a appelé
         
         # Récupérer le titre et l'année du film
@@ -692,14 +649,13 @@ class HomePage(QMainWindow):
         release_date = table.item(row, 2).text()  # L'année est la 3e colonne
         movie_year = release_date.split('-')[0]
 
-        # Rechercher l'ID du film à partir du titre et de l'année
-        movie_id = self.get_movie_id_by_title_and_year(movie_title, movie_year)
+        movie_id = self.get_movie_id_by_title_and_year(movie_title, movie_year) # Rechercher l'ID du film à partir du titre et de l'année
 
-        # Ouvrir la page du film
         if movie_id:
-            self.open_movie_page(movie_id, self.get_user_id(self.username))
+            self.open_movie_page(movie_id, self.get_user_id(self.username)) # Ouvrir la page du film
             
-    def get_user_id(self, username):
+    def get_user_id(self, username): #Obtenir l'id de l'utilisateur
+        #Il se peut que 2 user ait le meme id
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
@@ -713,7 +669,8 @@ class HomePage(QMainWindow):
             print(f"Error: {e}")
             return None
 
-    def get_movie_id_by_title_and_year(self, title, year):
+    def get_movie_id_by_title_and_year(self, title, year): #Obtenir l'id du film à partir du titre et de l'année
+        #En général, jamais 2 films s'appelant pareil sortent la même année donc on est bon
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
@@ -905,10 +862,12 @@ def get_movie_name(movie_id):
         print(f"Error: {e}")
         return "Movie Page"
 
+#----------------------------------------------------------
+
 class MoviePage(QMainWindow):
     def __init__(self, movie_id, user_id):
         super().__init__()
-        self.like_button = QPushButton("👍 Like")
+        self.like_button = QPushButton("👍 Like") #Dans le Init car on en a besoin dans plusieurs fonctions
         self.dislike_button = QPushButton("👎 Dislike")
 
         self.movie_id = movie_id
@@ -989,21 +948,21 @@ class MoviePage(QMainWindow):
 
         self.setCentralWidget(central_widget)
 
-    def get_movie_poster(self, movie_name):
+    def get_movie_poster(self, movie_name): #Appeler l'api pour obtenir le poster
         poster_url = get_movie_poster_api(movie_name)
-        if poster_url:
+        if poster_url: #Si on a trouvé qqchose, alors
             try:
                 response = requests.get(poster_url, stream=True)
                 if response.status_code == 200:
                     image_data = response.content
-                    pixmap = QPixmap()
+                    pixmap = QPixmap() 
                     pixmap.loadFromData(image_data)
                     return pixmap
             except Exception as e:
                 print(f"Erreur lors du téléchargement de l'image : {e}")
         return None
 
-    def get_like_dislike_status(self, user_id, movie_id):
+    def get_like_dislike_status(self, user_id, movie_id): #Remettre le bouton dans l'état où il etait dans la table
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
@@ -1272,7 +1231,7 @@ class MoviePage(QMainWindow):
         group.setLayout(layout)
         return group
 
-    def create_languages_section(self, movie_id):
+    def create_languages_section(self, movie_id): #Section pour les langues
         group = QGroupBox("Languages")
         layout = QVBoxLayout()
 
@@ -1282,6 +1241,7 @@ class MoviePage(QMainWindow):
             query = """SELECT L.name, L.language_code FROM spoken_languages AS L
                     INNER JOIN movie_spoken_languages AS MSL ON L.language_code = MSL.language_code
                     WHERE MSL.movie_id = %s"""
+                #On récupère les langues parlées dans le film dans la db 
             cursor.execute(query, (movie_id,))
             languages = cursor.fetchall()
             cursor.close()
@@ -1296,12 +1256,12 @@ class MoviePage(QMainWindow):
         group.setLayout(layout)
         return group
 
-    def get_flag_emoji(self, language_code):
+    def get_flag_emoji(self, language_code): #Essayer de charger l'emoji du drapeau de la langue si possible
         if len(language_code) == 2:
             return chr(ord(language_code[0].upper()) + 127397) + chr(ord(language_code[1].upper()) + 127397)
         return "🏳️"
 
-    def get_movie_cast(self, movie_id):
+    def get_movie_cast(self, movie_id): #Récupérer le cast du film (acteurs)
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
@@ -1335,7 +1295,7 @@ class MoviePage(QMainWindow):
         cast_group.setLayout(cast_layout)
         return cast_group
 
-    def get_movie_crew(self, movie_id):
+    def get_movie_crew(self, movie_id): #Récupérer le crew du film (réalisateur, producteur, etc)
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
