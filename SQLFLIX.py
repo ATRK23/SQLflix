@@ -136,7 +136,7 @@ class LoginWindow(QMainWindow):
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
 
         if self.check_credentials(username, hashed_password, True):
-            QMessageBox.information(self, "Success", "Successful Connection!")
+            #QMessageBox.information(self, "Success", "Successful Connection!")
 
             # Sauvegarde des informations si "Remember me" est coché
             if self.remember_me_checkbox.isChecked():
@@ -1452,7 +1452,7 @@ class MoviePage(QMainWindow):
             cursor.close()
             conn.close()
 
-            QMessageBox.information(self, "Success", "Your comment has been added!")
+            #QMessageBox.information(self, "Success", "Your comment has been added!")
             self.comment_input.clear()  # Effacez la zone de saisie
             self.load_comments()  # Rechargez les commentaires
         except Exception as e:
@@ -1483,7 +1483,7 @@ class MoviePage(QMainWindow):
             cursor.close()
             conn.close()
 
-            QMessageBox.information(self, "Success", "Comment deleted successfully!")
+            #QMessageBox.information(self, "Success", "Comment deleted successfully!")
             self.load_comments()  # Recharger les commentaires
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to delete comment: {e}")
