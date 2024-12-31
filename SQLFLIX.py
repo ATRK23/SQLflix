@@ -202,7 +202,33 @@ class LoginWindow(QMainWindow):
 
             self.open_home_page()
         else:
-            QMessageBox.warning(self, "Error", "Invalid username or password.")
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Warning)
+            msg.setWindowTitle("Error")
+            msg.setText("Invalid username or password.")
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #121212;
+                    color: #EAEAEA;
+                }
+                QMessageBox QLabel {
+                    font-size: 14px;
+                }
+                QMessageBox QPushButton {
+                    background-color: #9F7AEA;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                }
+                QMessageBox QPushButton:hover {
+                    background-color: #805AD5;
+                }
+                QMessageBox QPushButton:pressed {
+                    background-color: #6B4FB1;
+                }
+            """)
+            
+            msg.exec_()
         
     #Supprimer le fichier .json si besoin
     def clear_saved_credentials(self):
@@ -233,7 +259,7 @@ class LoginWindow(QMainWindow):
         else:
             self.password_input.setEchoMode(QLineEdit.Password)
 
-    def check_credentials(self, username, password, hashed=False): #Vérifier si les identifiants sont corrects, on précise si le mot de passe est déjà hashé ou non, 
+    def check_credentials(self, username, password, hashed=False):  # Vérifier si les identifiants sont corrects
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
@@ -242,18 +268,18 @@ class LoginWindow(QMainWindow):
                 # Si non hashé, hash du mot de passe
                 password = hashlib.sha256(password.encode()).hexdigest()
 
-            query = "SELECT password_hash FROM users WHERE username = %s" #Verifier si le hash correspond
+            query = "SELECT password_hash FROM users WHERE username = %s"  # Vérifier si le hash correspond
             cursor.execute(query, (username,))
             result = cursor.fetchone()
 
             if result:
                 stored_password_hash = result[0]
 
-                if stored_password_hash == password: #Si le hash correspond, on retourne True
+                if stored_password_hash == password:  # Si le hash correspond, on retourne True
                     cursor.close()
                     conn.close()
                     return True
-                else: #Sinon, on retourne False
+                else:  # Sinon, on retourne False
                     cursor.close()
                     conn.close()
                     return False
@@ -261,8 +287,35 @@ class LoginWindow(QMainWindow):
                 cursor.close()
                 conn.close()
                 return False
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Problem with the database : {e}")
+
+        except Exception as e:  # On capture l'exception ici
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Critical)
+            msg.setWindowTitle("Database Error")
+            msg.setText(f"Problem with the database: {e}")  # Affichage de l'exception
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #121212;
+                    color: #EAEAEA;
+                }
+                QMessageBox QLabel {
+                    font-size: 14px;
+                }
+                QMessageBox QPushButton {
+                    background-color: #9F7AEA;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                }
+                QMessageBox QPushButton:hover {
+                    background-color: #805AD5;
+                }
+                QMessageBox QPushButton:pressed {
+                    background-color: #6B4FB1;
+                }
+            """)
+
+            msg.exec_()
             return False
 
     def open_signup_window(self):
@@ -1194,7 +1247,7 @@ class MoviePage(QMainWindow):
         # Bouton pour ajouter le film à une playlist
         add_to_playlist_button = QPushButton("Add to Playlist")
         add_to_playlist_button.clicked.connect(self.add_to_playlist_ui)
-        left_layout.addWidget(add_to_playlist_button)  
+        left_layout.addWidget(add_to_playlist_button)
         
         # Partie droite : Sections
         right_layout.addWidget(self.create_ratings_section())
@@ -1648,6 +1701,16 @@ class MoviePage(QMainWindow):
 
         # Liste des commentaires
         self.comments_list = QListWidget()
+        self.comments_list.setStyleSheet("""
+            QListWidget {
+                background-color: #34495e;
+                color: #ecf0f1;
+                border: 1px solid #2ecc71;
+                border-radius: 5px;
+                padding: 10px;
+            }
+        """)
+        self.comments_list.setFixedHeight(400)  # Ajuster la hauteur de la liste des commentaires (ex. 400px)
         self.load_comments()
         comments_layout.addWidget(self.comments_list)
 
