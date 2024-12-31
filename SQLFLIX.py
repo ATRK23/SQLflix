@@ -14,7 +14,7 @@ import requests
 import json
 import os
 
-# Configuration PostgreSQL 
+# Configuration PostgreSQL
 DB_CONFIG = {
     'dbname': 'l3info_46',
     'user': 'l3info_46',
@@ -54,6 +54,64 @@ class LoginWindow(QMainWindow):
         super().__init__()
         
         self.setWindowTitle("SQLFLIX - Sign in")
+        self.setStyleSheet("""
+        QMainWindow {
+            background-color: #121212;
+            border-radius: 15px;
+            border: 1px solid #9F7AEA;
+        }
+        QLabel {
+            color: #EAEAEA;
+            font-size: 18px;
+            font-family: 'Roboto', sans-serif;
+            font-weight: bold;
+        }
+        QLineEdit {
+            padding: 12px;
+            border-radius: 25px;
+            border: 2px solid #9F7AEA;
+            background-color: #2A2A37;
+            color: #EAEAEA;
+            font-size: 16px;
+        }
+        QLineEdit:focus {
+            border-color: #9F7AEA;
+        }
+        QPushButton {
+            padding: 12px 24px;
+            border-radius: 30px;
+            background-color: #9F7AEA;
+            color: white;
+            font-weight: bold;
+            font-family: 'Roboto', sans-serif;
+            font-size: 16px;
+        }
+        QPushButton:hover {
+            background-color: #805AD5;
+        }
+        QPushButton:pressed {
+            background-color: #6B4FB1;
+        }
+        QCheckBox {
+            color: #EAEAEA;
+            font-family: 'Roboto', sans-serif;
+            font-size: 14px;
+        }
+        QCheckBox::indicator {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #9F7AEA;
+            border-radius: 3px;
+        }
+        QCheckBox::indicator:checked {
+            background-color: #9F7AEA;
+            border-color: #9F7AEA;
+        }
+        QCheckBox::indicator:unchecked {
+            background-color: transparent;
+        }
+        """)
+
         #self.setGeometry(300, 300, 400, 500)
         screen = QApplication.primaryScreen()
         size = screen.availableGeometry()
@@ -143,17 +201,43 @@ class LoginWindow(QMainWindow):
 
             self.open_home_page()
         else:
-            QMessageBox.warning(self, "Error", "Invalid username or password.")
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Warning)
+            msg.setWindowTitle("Error")
+            msg.setText("Invalid username or password.")
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #121212;
+                    color: #EAEAEA;
+                }
+                QMessageBox QLabel {
+                    font-size: 14px;
+                }
+                QMessageBox QPushButton {
+                    background-color: #9F7AEA;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                }
+                QMessageBox QPushButton:hover {
+                    background-color: #805AD5;
+                }
+                QMessageBox QPushButton:pressed {
+                    background-color: #6B4FB1;
+                }
+            """)
+            
+            msg.exec_()
         
-    #Supprimer le fichier .json si besoin    
+    #Supprimer le fichier .json si besoin
     def clear_saved_credentials(self):
         if os.path.exists("login_config.json"):
             try:
                 os.remove("login_config.json")
             except Exception as e:
-                print(f"Error clearing saved credentials: {e}")       
+                print(f"Error clearing saved credentials: {e}")
         
-    #Sauvegarder les id / mdp si l'utilisateur a coché la case "Remember me" dans un fichiers .json    
+    #Sauvegarder les id / mdp si l'utilisateur a coché la case "Remember me" dans un fichiers .json
     def save_credentials(self, username, hashed_password):
         try:
             data = {"username": username, "password": hashed_password}  # Utiliser directement le hash passé
@@ -174,7 +258,7 @@ class LoginWindow(QMainWindow):
         else:
             self.password_input.setEchoMode(QLineEdit.Password)
 
-    def check_credentials(self, username, password, hashed=False): #Vérifier si les identifiants sont corrects, on précise si le mot de passe est déjà hashé ou non, 
+    def check_credentials(self, username, password, hashed=False):  # Vérifier si les identifiants sont corrects
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
@@ -183,18 +267,18 @@ class LoginWindow(QMainWindow):
                 # Si non hashé, hash du mot de passe
                 password = hashlib.sha256(password.encode()).hexdigest()
 
-            query = "SELECT password_hash FROM users WHERE username = %s" #Verifier si le hash correspond
+            query = "SELECT password_hash FROM users WHERE username = %s"  # Vérifier si le hash correspond
             cursor.execute(query, (username,))
             result = cursor.fetchone()
 
             if result:
                 stored_password_hash = result[0]
 
-                if stored_password_hash == password: #Si le hash correspond, on retourne True
+                if stored_password_hash == password:  # Si le hash correspond, on retourne True
                     cursor.close()
                     conn.close()
                     return True
-                else: #Sinon, on retourne False
+                else:  # Sinon, on retourne False
                     cursor.close()
                     conn.close()
                     return False
@@ -202,8 +286,35 @@ class LoginWindow(QMainWindow):
                 cursor.close()
                 conn.close()
                 return False
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Problem with the database : {e}")
+
+        except Exception as e:  # On capture l'exception ici
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Critical)
+            msg.setWindowTitle("Database Error")
+            msg.setText(f"Problem with the database: {e}")  # Affichage de l'exception
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #121212;
+                    color: #EAEAEA;
+                }
+                QMessageBox QLabel {
+                    font-size: 14px;
+                }
+                QMessageBox QPushButton {
+                    background-color: #9F7AEA;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                }
+                QMessageBox QPushButton:hover {
+                    background-color: #805AD5;
+                }
+                QMessageBox QPushButton:pressed {
+                    background-color: #6B4FB1;
+                }
+            """)
+
+            msg.exec_()
             return False
 
     def open_signup_window(self):
@@ -233,6 +344,46 @@ class SignupWindow(QDialog):
         super().__init__()
 
         self.setWindowTitle("SQLFLIX - Sign up")
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #121212;
+                border-radius: 15px;
+                border: 1px solid #9F7AEA;
+            }
+            QLabel {
+                color: #EAEAEA;
+                font-size: 18px;
+                font-family: 'Roboto', sans-serif;
+                font-weight: bold;
+            }
+            QLineEdit {
+                padding: 12px;
+                border-radius: 25px;
+                border: 2px solid #9F7AEA;
+                background-color: #2A2A37;
+                color: #EAEAEA;
+                font-size: 16px;
+            }
+            QLineEdit:focus {
+                border-color: #9F7AEA;
+            }
+            QPushButton {
+                padding: 12px 24px;
+                border-radius: 30px;
+                background-color: #9F7AEA;
+                color: white;
+                font-weight: bold;
+                font-family: 'Roboto', sans-serif;
+                font-size: 16px;
+            }
+            QPushButton:hover {
+                background-color: #805AD5;
+            }
+            QPushButton:pressed {
+                background-color: #6B4FB1;
+            }
+            """)
+
         screen = QApplication.primaryScreen()
         size = screen.availableGeometry()
         self.move(size.width() // 2 - self.width() // 2, size.height() // 2 - self.height() // 2)
@@ -314,8 +465,91 @@ class HomePage(QMainWindow):
         super().__init__()
 
         self.username = username
-        self.playlist_manager = PlaylistManager(DB_CONFIG)  
+        self.playlist_manager = PlaylistManager(DB_CONFIG)
         self.setWindowTitle("SQLFLIX - Homepage")
+        self.setStyleSheet("""
+                QWidget {
+                    background-color: #1e1e2f;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    color: #ffffff;
+                }
+                QLabel {
+                    font-size: 24px;
+                    font-weight: 600;
+                    color: #ffffff;
+                    margin: 10px 0;
+                }
+                QGroupBox {
+                    background-color: #2a2a3a;
+                    border: 1px solid #444;
+                    border-radius: 10px;
+                    padding: 20px;
+                }
+                QGroupBox:title {
+                    color: #3498db;
+                    font-size: 22px;
+                    font-weight: bold;
+                    padding-bottom: 10px;
+                }
+                QLineEdit {
+                    background-color: #3e3e55;
+                    border: 1px solid #666;
+                    border-radius: 5px;
+                    color: #ddd;
+                    padding: 10px;
+                    font-size: 16px;
+                }
+                QLineEdit:focus {
+                    border-color: #3498db;
+                    background-color: #4b4b6b;
+                }
+                QPushButton {
+                    background-color: #3498db;
+                    color: white;
+                    font-size: 18px;
+                    padding: 12px 18px;
+                    border-radius: 8px;
+                    border: none;
+                    min-width: 120px;
+                }
+                QPushButton:hover {
+                    background-color: #2980b9;
+                }
+                QPushButton:focus {
+                    outline: none;
+                }
+                QPushButton#view_button {
+                    background-color: #2ecc71;
+                    min-width: 80px;
+                    padding: 8px 16px;
+                }
+                QPushButton#delete_button {
+                    background-color: #e74c3c;
+                    min-width: 80px;
+                    padding: 8px 16px;
+                }
+                QPushButton#remove_button {
+                    background-color: #f39c12;
+                    min-width: 80px;
+                    padding: 8px 16px;
+                }
+                QPushButton#view_button:hover {
+                    background-color: #27ae60;
+                }
+                QPushButton#delete_button:hover {
+                    background-color: #c0392b;
+                }
+                QPushButton#remove_button:hover {
+                    background-color: #e67e22;
+                }
+                QHBoxLayout, QVBoxLayout {
+                    spacing: 20px;
+                    margin: 20px;
+                }
+            """)
+
+
+
         #self.setGeometry(100, 100, 800, 600)
         screen = QApplication.primaryScreen()
         size = screen.availableGeometry()
@@ -492,20 +726,20 @@ class HomePage(QMainWindow):
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
             query = """
-                SELECT 
+                SELECT
                     M.title,
-                    STRING_AGG(DISTINCT G.name, ', ') AS genres, 
-                    M.release_date, 
+                    STRING_AGG(DISTINCT G.name, ', ') AS genres,
+                    M.release_date,
                     M.vote_average
-                FROM 
+                FROM
                     movies AS M
-                INNER JOIN 
+                INNER JOIN
                     movie_genres AS MG ON M.movie_id = MG.movie_id
-                INNER JOIN 
+                INNER JOIN
                     genres AS G ON MG.genre_id = G.genre_id
-                GROUP BY 
+                GROUP BY
                     M.movie_id, M.title, M.release_date, M.vote_average
-                ORDER BY 
+                ORDER BY
                     M.title;
             """
             cursor.execute(query)
@@ -528,19 +762,19 @@ class HomePage(QMainWindow):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            query = """ SELECT 
-                                M.title, 
+            query = """ SELECT
+                                M.title,
                                 string_agg(G.name, ', ') AS genres,
-                                M.release_date, 
+                                M.release_date,
                                 M.vote_average
-                        FROM 
+                        FROM
                                 movies AS M
-                                INNER JOIN 
+                                INNER JOIN
                                 movie_genres AS MG ON M.movie_id = MG.movie_id
-                                INNER JOIN 
+                                INNER JOIN
                                 genres AS G ON MG.genre_id = G.genre_id
                         WHERE vote_count > 1000
-                        GROUP BY 
+                        GROUP BY
                             M.movie_id, M.title, M.release_date, M.vote_average
                         ORDER BY (M.vote_average * LOG(1 + M.vote_count)) DESC
                         LIMIT 10;"""
@@ -566,28 +800,28 @@ class HomePage(QMainWindow):
             cursor = conn.cursor()
 
             query = """
-                SELECT 
+                SELECT
                     M.title,
-                    STRING_AGG(DISTINCT G.name, ', ') AS genres, 
-                    M.release_date, 
+                    STRING_AGG(DISTINCT G.name, ', ') AS genres,
+                    M.release_date,
                     M.vote_average
-                FROM 
+                FROM
                     movies AS M
-                LEFT JOIN 
+                LEFT JOIN
                     movie_genres AS MG ON M.movie_id = MG.movie_id
-                LEFT JOIN 
+                LEFT JOIN
                     genres AS G ON MG.genre_id = G.genre_id
-                LEFT JOIN 
+                LEFT JOIN
                     movie_keywords AS MK ON M.movie_id = MK.movie_id
-                LEFT JOIN 
+                LEFT JOIN
                     keywords AS K ON MK.keyword_id = K.keyword_id
-                WHERE 
+                WHERE
                     (%s = 'All Genres' OR G.name = %s) AND
                     (%s = '' OR M.title ILIKE %s) AND
                     (%s = '' OR K.name ILIKE %s)
-                GROUP BY 
+                GROUP BY
                     M.movie_id, M.title, M.release_date, M.vote_average
-                ORDER BY 
+                ORDER BY
                     M.title;
             """
 
@@ -735,11 +969,15 @@ class HomePage(QMainWindow):
 
             # Bouton "View"
             view_button = QPushButton("View")
+            view_button.setObjectName("view_button")  # Ajouter un identifiant
+            view_button.setFixedSize(80, 30)  # Fixer une taille pour le bouton
             view_button.clicked.connect(lambda _, pid=playlist[0]: self.view_playlist(pid))
             self.playlists_table.setCellWidget(row, 1, view_button)
 
             # Bouton "Delete"
             delete_button = QPushButton("Delete")
+            delete_button.setObjectName("delete_button")  # Ajouter un identifiant
+            delete_button.setFixedSize(80, 30)  # Fixer une taille pour le bouton
             if playlist[1] == "Liked Movies":
                 delete_button.setEnabled(False)  # Désactiver le bouton pour "Liked Movies"
             else:
@@ -773,6 +1011,8 @@ class HomePage(QMainWindow):
 
             # Ajouter le bouton "Remove"
             remove_button = QPushButton("Remove")
+            remove_button.setObjectName("remove_button")  # Ajouter un identifiant
+            remove_button.setFixedSize(80, 30)  # Fixer une taille pour le bouton
             remove_button.clicked.connect(lambda _, mid=movie[3]: self.remove_movie_from_playlist(playlist_id, mid, movies_table))
             movies_table.setCellWidget(row, 3, remove_button)
 
@@ -784,7 +1024,7 @@ class HomePage(QMainWindow):
         # Boîte de dialogue pour demander le nom de la playlist
         playlist_name, ok = QInputDialog.getText(self, "Create Playlist", "Enter playlist name:")
         if ok and playlist_name.strip():  # Vérifier si un nom a été saisi
-           # Appeler le backend pour créer la playlist
+        # Appeler le backend pour créer la playlist
             playlist_id = self.playlist_manager.create_playlist(self.get_user_id(self.username), playlist_name.strip())
             if playlist_id:
                 QMessageBox.information(self, "Success", f"Playlist '{playlist_name}' created successfully!")
@@ -872,6 +1112,104 @@ def get_movie_name(movie_id):
 class MoviePage(QMainWindow):
     def __init__(self, movie_id, user_id):
         super().__init__()
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #2c3e50;
+                color: #ecf0f1;
+                font-family: Arial, sans-serif;
+                font-size: 14px;
+            }
+
+            QGroupBox {
+                border: 2px solid #3498db;
+                border-radius: 5px;
+                margin-top: 10px;
+                font-size: 16px;
+                font-weight: bold;
+                color: #1abc9c;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding: 0 5px;
+            }
+            QPushButton {
+                background-color: #2980b9;
+                color: #ecf0f1;
+                border: 1px solid #3498db;
+                border-radius: 4px;
+                padding: 5px 10px;
+            }
+            QPushButton:hover {
+                background-color: #3498db;
+            }
+            QPushButton:pressed {
+                background-color: #1abc9c;
+            }
+            QLineEdit, QTextEdit {
+                background-color: #34495e;
+                color: #ecf0f1;
+                border: 1px solid #3498db;
+                border-radius: 4px;
+                padding: 3px;
+            }
+            QListWidget {
+                background-color: #34495e;
+                color: #ecf0f1;
+                border: 1px solid #2ecc71;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QInputDialog, QMessageBox {
+                background-color: #2c3e50;
+                color: #ecf0f1;
+            }
+            QLabel {
+                color: #ecf0f1;
+            }
+            QComboBox {
+                background-color: #34495e;
+                color: #ecf0f1;
+                border: 1px solid #3498db;
+                border-radius: 4px;
+                padding: 3px;
+            }
+            QComboBox:hover {
+                background-color: #2ecc71;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: #34495e;
+                width: 10px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #1abc9c;
+                min-height: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                border: none;
+                background: none;
+            }
+            QScrollBar:horizontal {
+                border: none;
+                background: #34495e;
+                height: 10px;
+                margin: 0px;
+            }
+            QScrollBar::handle:horizontal {
+                background: #1abc9c;
+                min-width: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                border: none;
+                background: none;
+            }
+        """)
+
+
         self.like_button = QPushButton("👍 Like") #Dans le Init car on en a besoin dans plusieurs fonctions
         self.dislike_button = QPushButton("👎 Dislike")
 
@@ -908,7 +1246,7 @@ class MoviePage(QMainWindow):
         # Bouton pour ajouter le film à une playlist
         add_to_playlist_button = QPushButton("Add to Playlist")
         add_to_playlist_button.clicked.connect(self.add_to_playlist_ui)
-        left_layout.addWidget(add_to_playlist_button)  
+        left_layout.addWidget(add_to_playlist_button)
         
         # Partie droite : Sections
         right_layout.addWidget(self.create_ratings_section())
@@ -1071,8 +1409,8 @@ class MoviePage(QMainWindow):
                 query_remove_from_playlist = """
                     DELETE FROM playlist_movies
                     WHERE playlist_id = (
-                        SELECT playlist_id 
-                        FROM playlists 
+                        SELECT playlist_id
+                        FROM playlists
                         WHERE user_id = %s AND name = 'Liked Movies'
                     ) AND movie_id = %s;
                 """
@@ -1167,7 +1505,7 @@ class MoviePage(QMainWindow):
             try:
                 conn = psycopg2.connect(**DB_CONFIG)
                 cursor = conn.cursor()
-                query = """INSERT INTO user_movie_interactions (user_id, movie_id, rating) 
+                query = """INSERT INTO user_movie_interactions (user_id, movie_id, rating)
                         VALUES (%s, %s, %s)
                         ON CONFLICT (user_id, movie_id) DO UPDATE SET rating = %s"""
                 cursor.execute(query, (self.user_id, self.movie_id, value, value))
@@ -1362,6 +1700,16 @@ class MoviePage(QMainWindow):
 
         # Liste des commentaires
         self.comments_list = QListWidget()
+        self.comments_list.setStyleSheet("""
+            QListWidget {
+                background-color: #34495e;
+                color: #ecf0f1;
+                border: 1px solid #2ecc71;
+                border-radius: 5px;
+                padding: 10px;
+            }
+        """)
+        self.comments_list.setFixedHeight(400)  # Ajuster la hauteur de la liste des commentaires (ex. 400px)
         self.load_comments()
         comments_layout.addWidget(self.comments_list)
 
@@ -1543,7 +1891,7 @@ class PlaylistManager:
             SELECT M.title, M.release_date, M.vote_average, M.movie_id
             FROM playlist_movies AS PM
             JOIN movies AS M ON PM.movie_id = M.movie_id
-         WHERE PM.playlist_id = %s;
+            WHERE PM.playlist_id = %s;
             """
             cursor.execute(query, (playlist_id,))
             movies = cursor.fetchall()
