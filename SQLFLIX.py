@@ -849,7 +849,7 @@ class HomePage(QMainWindow):
             self.all_movies_table.setItem(row, 3, QTableWidgetItem(str(movie["vote_average"])))
 
     #Supprimer le fichier .json si besoin
-    #Ici car on a besoin de l'instance de Homepage pour le faire        
+    #Ici car on a besoin de l'instance de Homepage pour le faire
     def clear_saved_credentials(self):
         if os.path.exists("login_config.json"):
             try:
@@ -1727,6 +1727,7 @@ class MoviePage(QMainWindow):
         comments_group.setLayout(comments_layout)
         return comments_group
 
+
     def load_comments(self):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
@@ -1744,22 +1745,49 @@ class MoviePage(QMainWindow):
 
             for comment_id, username, comment_text, created_at, user_id in comments:
                 formatted_date = created_at.strftime("%Y-%m-%d %H:%M:%S")
+
                 # Créer un widget pour chaque commentaire
                 comment_widget = QWidget()
-                layout = QHBoxLayout()
+                layout = QVBoxLayout()
 
                 # Texte du commentaire
-                comment_label = QLabel(f"{username} ({formatted_date}):\n{comment_text}")
+                comment_label = QLabel(f"<b>{username}</b> ({formatted_date}):\n{comment_text}")
                 comment_label.setWordWrap(True)
+                comment_label.setStyleSheet("""
+                    QLabel {
+                        background-color: #2c3e50;
+                        color: #ecf0f1;
+                        padding: 10px;
+                        border: 1px solid #2ecc71;
+                        border-radius: 5px;
+                    }
+                """)
                 layout.addWidget(comment_label)
 
                 # Ajouter un bouton "Supprimer" si l'utilisateur est l'auteur
                 if user_id == self.user_id:
                     delete_button = QPushButton("Delete")
+                    delete_button.setStyleSheet("""
+                        QPushButton {
+                            background-color: #e74c3c;
+                            color: white;
+                            border: none;
+                            border-radius: 5px;
+                            padding: 5px 10px;
+                        }
+                        QPushButton:hover {
+                            background-color: #c0392b;
+                        }
+                    """)
                     delete_button.clicked.connect(lambda _, cid=comment_id: self.delete_comment(cid))
                     layout.addWidget(delete_button)
-    
+
+                # Appliquer le layout au widget
+                layout.setContentsMargins(10, 10, 10, 10)  # Marges autour du commentaire
+                layout.setSpacing(10)  # Espacement interne
                 comment_widget.setLayout(layout)
+
+                # Ajuster la taille de l'item
                 item = QListWidgetItem()
                 item.setSizeHint(comment_widget.sizeHint())
                 self.comments_list.addItem(item)
@@ -1769,6 +1797,7 @@ class MoviePage(QMainWindow):
             conn.close()
         except Exception as e:
             print(f"Error loading comments: {e}")
+
 
 
     def submit_comment(self):
@@ -1802,7 +1831,7 @@ class MoviePage(QMainWindow):
 
             # Vérifier si l'utilisateur connecté est l'auteur du commentaire
             query_check = """
-                SELECT 1 FROM comments 
+                SELECT 1 FROM comments
                 WHERE comment_id = %s AND user_id = %s;
             """
             cursor.execute(query_check, (comment_id, self.user_id))
