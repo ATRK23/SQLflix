@@ -16,12 +16,11 @@ import os
 
 # Configuration PostgreSQL
 DB_CONFIG = {
-    'dbname': 'sqlflix',
-    'user': 'postgres',
-    'password': 'database12@',
-    'host': 'localhost',
-    #'port': '5432'
-}
+    'dbname': 'l3info_46',
+    'user': 'l3info_46',
+    'password': 'L3INFO_46',
+    'host': '10.11.11.22'}
+
 
 #API TMDB pour les poster
 tmdb_api_key = "e072012ac707cd3cd0d66699ebce5aff"
