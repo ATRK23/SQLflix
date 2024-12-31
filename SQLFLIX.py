@@ -3,8 +3,8 @@ import psycopg2
 import hashlib
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QLineEdit, QPushButton,
-    QLabel, QMessageBox, QWidget, QDialog, QSpacerItem, QSizePolicy, QHBoxLayout, QCheckBox,
-    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QGridLayout, QHeaderView, QInputDialog, QComboBox, QTextEdit, QListWidget, QListWidgetItem
+    QLabel, QMessageBox, QWidget, QDialog, QHBoxLayout, QCheckBox,
+    QTableWidget, QTableWidgetItem, QGroupBox, QTabWidget, QSplitter, QScrollArea, QSlider, QFrame, QHeaderView, QInputDialog, QComboBox, QTextEdit, QListWidget, QListWidgetItem
 )
 from PyQt5.QtGui import QPixmap, QFont, QIcon
 from PyQt5.QtCore import Qt, QTimer
@@ -19,7 +19,8 @@ DB_CONFIG = {
     'dbname': 'l3info_46',
     'user': 'l3info_46',
     'password': 'L3INFO_46',
-    'host': '10.11.11.22'}
+    'host': '10.11.11.22'
+}
 
 
 #API TMDB pour les poster
@@ -1709,7 +1710,7 @@ class MoviePage(QMainWindow):
                 padding: 10px;
             }
         """)
-        self.comments_list.setFixedHeight(400)  # Ajuster la hauteur de la liste des commentaires (ex. 400px)
+        self.comments_list.setFixedHeight(400)
         self.load_comments()
         comments_layout.addWidget(self.comments_list)
 
